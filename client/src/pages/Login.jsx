@@ -110,7 +110,7 @@ const Login = () => {
              ): (
                 <Button
                   type='submit'
-                  label='Submitting...'
+                  label='Submit'
                   className='w-full h-10 bg-blue-700 text-white rounded-full'
                   disabled
                 />

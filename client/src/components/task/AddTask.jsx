@@ -1,38 +1,92 @@
-import React, { useState } from "react";
-import ModalWrapper from "../ModalWrapper";
+import React, { useEffect, useState } from "react";
 import { Dialog } from "@headlessui/react";
-import Textbox from "../Textbox";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import ModalWrapper from "../ModalWrapper";
+import Textbox from "../Textbox";
 import UserList from "./UserList";
 import SelectList from "../SelectList";
 import { BiImages } from "react-icons/bi";
 import Button from "../Button";
+import {
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+} from "../../redux/slices/api/TaskApiSlice";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORIRY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
 
-const uploadedFileURLs = [];
-
-const AddTask = ({ open, setOpen }) => {
-  const task = "";
-
+const AddTask = ({ open, setOpen, task }) => {
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm();
+
   const [team, setTeam] = useState(task?.team || []);
   const [stage, setStage] = useState(task?.stage?.toUpperCase() || LISTS[0]);
   const [priority, setPriority] = useState(
     task?.priority?.toUpperCase() || PRIORIRY[2]
   );
-  const [assets, setAssets] = useState([]);
+  const [assets, setAssets] = useState(task?.assets || []);
   const [uploading, setUploading] = useState(false);
+  const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
+  const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
 
-  const submitHandler = () => {};
+  useEffect(() => {
+    if (task) {
+      reset({
+        title: task.title || "",
+        date: task.date ? new Date(task.date).toISOString().slice(0, 10) : "",
+      });
+      setTeam(task.team || []);
+      setStage(task.stage?.toUpperCase() || LISTS[0]);
+      setPriority(task.priority?.toUpperCase() || PRIORIRY[2]);
+      setAssets(task.assets || []);
+    } else {
+      reset({ title: "", date: "" });
+      setTeam([]);
+      setStage(LISTS[0]);
+      setPriority(PRIORIRY[2]);
+      setAssets([]);
+    }
+  }, [task, reset]);
+
+  const submitHandler = async (data) => {
+    try {
+      if (!team || team.length === 0) {
+        toast.error("Please select at least one team member.");
+        return;
+      }
+
+      const payload = {
+        title: data.title,
+        team,
+        stage: stage.toLowerCase(),
+        date: data.date,
+        priority: priority.toLowerCase(),
+        assets,
+      };
+
+      const response = task
+        ? await updateTask({ id: task._id, ...payload }).unwrap()
+        : await createTask(payload).unwrap();
+
+      toast.success(
+        response?.message ||
+          (task ? "Task updated successfully." : "Task created successfully.")
+      );
+      reset();
+      setOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "Failed to save task.");
+    }
+  };
 
   const handleSelect = (e) => {
-    setAssets(e.target.files);
+    setAssets(Array.from(e.target.files || []).map((file) => file.name));
   };
 
   return (
@@ -110,15 +164,19 @@ const AddTask = ({ open, setOpen }) => {
             </div>
 
             <div className='bg-gray-50 py-6 sm:flex sm:flex-row-reverse gap-4'>
-              {uploading ? (
+              {uploading || isCreating || isUpdating ? (
                 <span className='text-sm py-2 text-red-500'>
-                  Uploading assets
+                  {isCreating
+                    ? "Creating task..."
+                    : isUpdating
+                    ? "Updating task..."
+                    : "Uploading assets"}
                 </span>
               ) : (
                 <Button
                   label='Submit'
                   type='submit'
-                  className='bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700  sm:w-auto'
+                  className='bg-blue-600 px-8 text-sm font-semibold text-white hover:bg-blue-700 sm:w-auto'
                 />
               )}
 

@@ -6,9 +6,14 @@ import { HiDuplicate } from "react-icons/hi";
 import { MdAdd, MdOutlineEdit } from "react-icons/md";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { Menu, Transition } from "@headlessui/react";
+import { toast } from "sonner";
 import AddTask from "./AddTask";
 import AddSubTask from "./AddSubTask";
 import ConfirmatioDialog from "../Dialogs";
+import {
+  useDuplicateTaskMutation,
+  useTrashTaskMutation,
+} from "../../redux/slices/api/TaskApiSlice";
 
 const TaskDialog = ({ task }) => {
   const [open, setOpen] = useState(false);
@@ -16,10 +21,30 @@ const TaskDialog = ({ task }) => {
   const [openDialog, setOpenDialog] = useState(false);
 
   const navigate = useNavigate();
+  const [duplicateTask] = useDuplicateTaskMutation();
+  const [trashTask] = useTrashTaskMutation();
 
-  const duplicateHandler = () => {};
-  const deleteClicks = () => {};
-  const deleteHandler = () => {};
+  const duplicateHandler = async () => {
+    try {
+      const response = await duplicateTask(task._id).unwrap();
+      toast.success(response?.message || "Task duplicated successfully.");
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "Failed to duplicate task.");
+    }
+  };
+
+  const deleteClicks = () => setOpenDialog(true);
+  const deleteHandler = async () => {
+    try {
+      const response = await trashTask(task._id).unwrap();
+      toast.success(response?.message || "Task moved to trash.");
+      setOpenDialog(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "Failed to move task to trash.");
+    }
+  };
 
   const items = [
     {
@@ -40,7 +65,7 @@ const TaskDialog = ({ task }) => {
     {
       label: "Duplicate",
       icon: <HiDuplicate className='mr-2 h-5 w-5' aria-hidden='true' />,
-      onClick: () => duplicateHanlder(),
+      onClick: () => duplicateHandler(),
     },
   ];
 
@@ -110,11 +135,13 @@ const TaskDialog = ({ task }) => {
         key={new Date().getTime()}
       />
 
-      <AddSubTask open={open} setOpen={setOpen} />
+      <AddSubTask open={open} setOpen={setOpen} id={task._id} />
 
       <ConfirmatioDialog
         open={openDialog}
         setOpen={setOpenDialog}
+        msg='Are you sure you want to delete this task?'
+        type='delete'
         onClick={deleteHandler}
       />
     </>

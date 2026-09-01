@@ -9,9 +9,9 @@ import { IoMdAdd } from "react-icons/io";
 import Tabs from "../components/Tabs";
 import TaskTitle from "../components/TaskTitle";
 import BoardView from "../components/BoardView";
-import { tasks } from "../assets/data";
 import Table from "../components/task/Table";
 import AddTask from "../components/task/AddTask";
+import { useGetTasksQuery } from "../redux/slices/api/TaskApiSlice";
 
 const TABS = [
   { title: "Board View", icon: <MdGridView /> },
@@ -26,14 +26,30 @@ const TASK_TYPE = {
 
 const Tasks = () => {
   const params = useParams();
-
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const status = params?.status || "";
+  const rawStatus = decodeURIComponent(params?.status || "").trim();
+  const normalizeStage = (value) => {
+    if (!value) return "";
 
-  return loading ? (
+    const normalized = value.toLowerCase().trim();
+    if (normalized === "in-progress" || normalized === "in progress") {
+      return "in progress";
+    }
+
+    return normalized;
+  };
+
+  const status = normalizeStage(rawStatus);
+  const { data, isLoading } = useGetTasksQuery({
+    stage: status || undefined,
+    isTrashed: false,
+  });
+
+  const tasks = data?.tasks || [];
+
+  return isLoading ? (
     <div className='py-10'>
       <Loading />
     </div>

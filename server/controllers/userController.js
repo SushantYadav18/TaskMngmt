@@ -124,16 +124,14 @@ export const getNotificationsList = async (req, res) => {
 export const updateUserProfile = async (req, res) => {
   try {
     const { userId, isAdmin } = req.user;
-    const { _id } = req.body;
+    const { _id, id } = req.body;
 
-    const id =
-      isAdmin && userId === _id
-        ? userId
-        : isAdmin && userId !== _id
-        ? _id
-        : userId;
+    const targetUserId = _id || id || userId;
 
-    const user = await User.findById(id);
+    const resolvedId =
+      isAdmin && targetUserId ? targetUserId : userId;
+
+    const user = await User.findById(resolvedId);
 
     if (user) {
       user.name = req.body.name || user.name;

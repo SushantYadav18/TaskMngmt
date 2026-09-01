@@ -1,26 +1,32 @@
 import { Listbox, Transition } from "@headlessui/react";
 import { Fragment, useEffect, useState } from "react";
 import { BsChevronExpand } from "react-icons/bs";
-import { summary } from "../../assets/data";
 import clsx from "clsx";
-import { getInitials } from "../../utils";
 import { MdCheck } from "react-icons/md";
+import { useGetTeamListQuery } from "../..//redux/slices/api/userApiSlice";
+import { getInitials } from "../../utils";
 
 const UserList = ({ setTeam, team }) => {
-  const data = summary.users;
+  const { data = [] } = useGetTeamListQuery();
   const [selectedUsers, setSelectedUsers] = useState([]);
 
   const handleChange = (el) => {
     setSelectedUsers(el);
     setTeam(el?.map((u) => u._id));
   };
+
   useEffect(() => {
-    if (team?.length < 1) {
-      data && setSelectedUsers([data[0]]);
-    } else {
-      setSelectedUsers(team);
+    if (!team || team.length < 1) {
+      if (data[0]) {
+        setSelectedUsers([data[0]]);
+        setTeam([data[0]._id]);
+      }
+      return;
     }
-  }, []);
+
+    const matched = data.filter((user) => team.includes(user._id));
+    setSelectedUsers(matched);
+  }, [data, team, setTeam]);
 
   return (
     <div>
@@ -57,7 +63,7 @@ const UserList = ({ setTeam, team }) => {
                   className={({ active }) =>
                     `relative cursor-default select-none py-2 pl-10 pr-4. ${
                       active ? "bg-amber-100 text-amber-900" : "text-gray-900"
-                    } `
+                    }`
                   }
                   value={user}
                 >

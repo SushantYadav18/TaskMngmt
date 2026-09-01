@@ -103,9 +103,20 @@ export const postTaskActivity = async (req, res) => {
     const { type, activity } = req.body;
 
     const task = await Task.findById(id);
+    const normalizedType = String(type || "").toLowerCase();
+
+    if (normalizedType === "completed") {
+      task.stage = "completed";
+    } else if (normalizedType === "in progress") {
+      task.stage = "in progress";
+    } else if (normalizedType === "started" || normalizedType === "bug") {
+      task.stage = "in progress";
+    } else if (normalizedType === "assigned") {
+      task.stage = "todo";
+    }
 
     const data = {
-      type,
+      type: normalizedType,
       activity,
       by: userId,
     };
@@ -199,9 +210,15 @@ export const dashboardStatistics = async (req, res) => {
 
 export const getTasks = async (req, res) => {
   try {
-    const { stage, isTrashed } = req.query;
+    const { stage } = req.query;
+    const rawIsTrashed = req.query.isTrashed;
+    const isTrashed =
+      rawIsTrashed === true ||
+      rawIsTrashed === "true" ||
+      rawIsTrashed === "1" ||
+      rawIsTrashed === 1;
 
-    let query = { isTrashed: isTrashed ? true : false };
+    let query = { isTrashed: Boolean(isTrashed) };
 
     if (stage) {
       query.stage = stage;
@@ -334,8 +351,12 @@ export const deleteRestoreTask = async (req, res) => {
     } else if (actionType === "restore") {
       const resp = await Task.findById(id);
 
+      if (!resp) {
+        return res.status(404).json({ status: false, message: "Task not found." });
+      }
+
       resp.isTrashed = false;
-      resp.save();
+      await resp.save();
     } else if (actionType === "restoreAll") {
       await Task.updateMany(
         { isTrashed: true },

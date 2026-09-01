@@ -14,11 +14,14 @@ import {
 import { RxActivityLog } from "react-icons/rx";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { tasks } from "../assets/data";
 import Tabs from "../components/Tabs";
 import { PRIOTITYSTYELS, TASK_TYPE, getInitials } from "../utils";
 import Loading from "../components/Loader";
 import Button from "../components/Button";
+import {
+  useGetTaskByIdQuery,
+  usePostTaskActivityMutation,
+} from "../redux/slices/api/TaskApiSlice";
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
@@ -88,9 +91,26 @@ const act_types = [
 
 const TaskDetails = () => {
   const { id } = useParams();
-
+  const { data, isLoading, isError } = useGetTaskByIdQuery(id);
   const [selected, setSelected] = useState(0);
-  const task = tasks[3];
+
+  const task = data?.task;
+
+  if (isLoading) {
+    return (
+      <div className='py-10'>
+        <Loading />
+      </div>
+    );
+  }
+
+  if (isError || !task) {
+    return (
+      <div className='w-full py-10 text-center text-red-500'>
+        Task not found or failed to load.
+      </div>
+    );
+  }
 
   return (
     <div className='w-full flex flex-col gap-3 mb-4 overflow-y-hidden'>
@@ -126,7 +146,7 @@ const TaskDetails = () => {
                 </div>
 
                 <p className='text-gray-500'>
-                  Created At: {new Date(task?.date).toDateString()}
+                  Created At: {new Date(task?.date || Date.now()).toDateString()}
                 </p>
 
                 <div className='flex items-center gap-8 p-4 border-y border-gray-200'>
@@ -231,9 +251,29 @@ const TaskDetails = () => {
 const Activities = ({ activity, id }) => {
   const [selected, setSelected] = useState(act_types[0]);
   const [text, setText] = useState("");
-  const isLoading = false;
+  const [postTaskActivity, { isLoading }] = usePostTaskActivityMutation();
 
-  const handleSubmit = async () => {};
+  const handleSubmit = async () => {
+    if (!text.trim()) {
+      toast.error("Please enter activity text.");
+      return;
+    }
+
+    try {
+      const response = await postTaskActivity({
+        id,
+        type: selected.toLowerCase(),
+        activity: text,
+      }).unwrap();
+
+      toast.success(response?.message || "Activity added.");
+      setText("");
+      setSelected(act_types[0]);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "Failed to add activity.");
+    }
+  };
 
   const Card = ({ item }) => {
     return (

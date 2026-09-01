@@ -7,12 +7,15 @@ import {
   MdKeyboardDoubleArrowUp,
   MdOutlineRestore,
 } from "react-icons/md";
-import { tasks } from "../assets/data";
 import Title from "../components/Title";
 import Button from "../components/Button";
 import { PRIOTITYSTYELS, TASK_TYPE } from "../utils";
-import AddUser from "../components/AddUser";
 import ConfirmatioDialog from "../components/Dialogs";
+import {
+  useDeleteRestoreTaskMutation,
+  useGetTasksQuery,
+} from "../redux/slices/api/TaskApiSlice";
+import { toast } from "sonner";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -22,10 +25,13 @@ const ICONS = {
 
 const Trash = () => {
   const [openDialog, setOpenDialog] = useState(false);
-  const [open, setOpen] = useState(false);
   const [msg, setMsg] = useState(null);
   const [type, setType] = useState("delete");
   const [selected, setSelected] = useState("");
+  const { data, isLoading, refetch } = useGetTasksQuery({ isTrashed: true });
+  const [deleteRestoreTask] = useDeleteRestoreTaskMutation();
+
+  const tasks = data?.tasks || [];
 
   const deleteAllClick = () => {
     setType("deleteAll");
@@ -50,6 +56,34 @@ const Trash = () => {
     setType("restore");
     setMsg("Do you want to restore the selected item?");
     setOpenDialog(true);
+  };
+
+  const deleteRestoreHandler = async () => {
+    try {
+      const actionType =
+        type === "deleteAll"
+          ? "deleteAll"
+          : type === "restoreAll"
+          ? "restoreAll"
+          : type === "restore"
+          ? "restore"
+          : "delete";
+
+      const response = await deleteRestoreTask({
+        id: selected || undefined,
+        actionType,
+      }).unwrap();
+
+      await refetch();
+      toast.success(response?.message || "Operation performed successfully.");
+      setOpenDialog(false);
+      setSelected("");
+      setType("delete");
+      setMsg(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || "Operation failed.");
+    }
   };
 
   const TableHeader = () => (
@@ -126,19 +160,21 @@ const Trash = () => {
         </div>
         <div className='bg-white px-2 md:px-6 py-4 shadow-md rounded'>
           <div className='overflow-x-auto'>
-            <table className='w-full mb-5'>
-              <TableHeader />
-              <tbody>
-                {tasks?.map((tk, id) => (
-                  <TableRow key={id} item={tk} />
-                ))}
-              </tbody>
-            </table>
+            {isLoading ? (
+              <div className='py-6 text-center text-gray-500'>Loading trash...</div>
+            ) : (
+              <table className='w-full mb-5'>
+                <TableHeader />
+                <tbody>
+                  {tasks?.map((tk, id) => (
+                    <TableRow key={id} item={tk} />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
-
-      {/* <AddUser open={open} setOpen={setOpen} /> */}
 
       <ConfirmatioDialog
         open={openDialog}
