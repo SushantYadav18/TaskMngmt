@@ -10,7 +10,13 @@ const userSchema = new Schema(
     password: { type: String, required: true },
     isAdmin: { type: Boolean, required: true, default: false },
     tasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
-    isActive: { type: Boolean, required: true, default: true },
+    isActive: { type: Boolean, required: true, default: false },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    googleAuth: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

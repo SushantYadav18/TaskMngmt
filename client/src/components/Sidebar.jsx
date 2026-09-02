@@ -44,6 +44,11 @@ const linkData = [
     icon: <FaUsers />,
   },
   {
+    label: "Pending",
+    link: "pending-users",
+    icon: <MdOutlinePendingActions />,
+  },
+  {
     label: "Trash",
     link: "trashed",
     icon: <FaTrashAlt />,
@@ -58,7 +63,9 @@ const Sidebar = () => {
 
   const path = location.pathname.split("/")[1];
 
-  const sidebarLinks = user?.isAdmin ? linkData : linkData.slice(0, 5);
+  const sidebarLinks = user?.isAdmin
+    ? linkData
+    : linkData.filter((link) => link.link !== "pending-users");
 
   const closeSidebar = () => {
     dispatch(setOpenSidebar(false));

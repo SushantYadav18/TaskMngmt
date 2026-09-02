@@ -8,7 +8,7 @@ import Textbox from "./Textbox";
 import Loading from "./Loader";
 import Button from "./Button";
 import { useDispatch } from "react-redux";
-import { useRegisterMutation } from "../redux/slices/api/authApiSlice";
+import { useCreateUserMutation } from "../redux/slices/api/userApiSlice";
 import { useUpdateUserMutation } from "../redux/slices/api/userApiSlice";
 import { setCredentials } from "../redux/slices/authSlice";
 
@@ -23,7 +23,7 @@ const AddUser = ({ open, setOpen, userData }) => {
   } = useForm({ defaultValues });
 
   const dispatch = useDispatch();
-  const [addNewUser, { isLoading }] = useRegisterMutation();
+  const [addNewUser, { isLoading }] = useCreateUserMutation();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
 
   const handleOnSubmit = async (data) => {
@@ -41,7 +41,6 @@ const AddUser = ({ open, setOpen, userData }) => {
       } else {
         const result = await addNewUser({
           ...data,
-          password: data.email,
         }).unwrap();
         toast.success(result.message || "User added successfully!");
       }
@@ -111,6 +110,24 @@ const AddUser = ({ open, setOpen, userData }) => {
               })}
               error={errors.role ? errors.role.message : ""}
             />
+
+            {!userData && (
+              <Textbox
+                placeholder='Password'
+                type='password'
+                name='password'
+                label='Password'
+                className='w-full rounded'
+                register={register("password", {
+                  required: "Password is required!",
+                  minLength: {
+                    value: 6,
+                    message: "Password must be at least 6 characters.",
+                  },
+                })}
+                error={errors.password ? errors.password.message : ""}
+              />
+            )}
           </div>
 
           {isLoading || isUpdating ? (

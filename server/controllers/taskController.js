@@ -220,6 +220,10 @@ export const getTasks = async (req, res) => {
 
     let query = { isTrashed: Boolean(isTrashed) };
 
+    if (!req.user.isAdmin) {
+      query.team = req.user.userId;
+    }
+
     if (stage) {
       query.stage = stage;
     }
@@ -306,7 +310,9 @@ export const updateTask = async (req, res) => {
     task.priority = priority.toLowerCase();
     task.assets = assets;
     task.stage = stage.toLowerCase();
-    task.team = team;
+    if (req.user.isAdmin) {
+      task.team = team;
+    }
 
     await task.save();
 

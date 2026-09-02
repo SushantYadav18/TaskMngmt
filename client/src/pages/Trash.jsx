@@ -16,6 +16,7 @@ import {
   useGetTasksQuery,
 } from "../redux/slices/api/TaskApiSlice";
 import { toast } from "sonner";
+import { useSelector } from "react-redux";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
@@ -24,6 +25,7 @@ const ICONS = {
 };
 
 const Trash = () => {
+  const { user } = useSelector((state) => state.auth);
   const [openDialog, setOpenDialog] = useState(false);
   const [msg, setMsg] = useState(null);
   const [type, setType] = useState("delete");
@@ -143,20 +145,22 @@ const Trash = () => {
         <div className='flex items-center justify-between mb-8'>
           <Title title='Trashed Tasks' />
 
-          <div className='flex gap-2 md:gap-4 items-center'>
-            <Button
-              label='Restore All'
-              icon={<MdOutlineRestore className='text-lg hidden md:flex' />}
-              className='flex flex-row-reverse gap-1 items-center  text-black text-sm md:text-base rounded-md 2xl:py-2.5'
-              onClick={() => restoreAllClick()}
-            />
-            <Button
-              label='Delete All'
-              icon={<MdDelete className='text-lg hidden md:flex' />}
-              className='flex flex-row-reverse gap-1 items-center  text-red-600 text-sm md:text-base rounded-md 2xl:py-2.5'
-              onClick={() => deleteAllClick()}
-            />
-          </div>
+          {user?.isAdmin && (
+            <div className='flex gap-2 md:gap-4 items-center'>
+              <Button
+                label='Restore All'
+                icon={<MdOutlineRestore className='text-lg hidden md:flex' />}
+                className='flex flex-row-reverse gap-1 items-center  text-black text-sm md:text-base rounded-md 2xl:py-2.5'
+                onClick={() => restoreAllClick()}
+              />
+              <Button
+                label='Delete All'
+                icon={<MdDelete className='text-lg hidden md:flex' />}
+                className='flex flex-row-reverse gap-1 items-center  text-red-600 text-sm md:text-base rounded-md 2xl:py-2.5'
+                onClick={() => deleteAllClick()}
+              />
+            </div>
+          )}
         </div>
         <div className='bg-white px-2 md:px-6 py-4 shadow-md rounded'>
           <div className='overflow-x-auto'>

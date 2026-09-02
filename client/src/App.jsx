@@ -15,6 +15,20 @@ import Users from "./pages/Users";
 import Dashboard from "./pages/dashboard";
 import { setOpenSidebar } from "./redux/slices/authSlice";
 
+function AdminRoute({ children }) {
+  const { user } = useSelector((state) => state.auth);
+
+  if (!user) {
+    return <Navigate to='/log-in' replace />;
+  }
+
+  if (!user.isAdmin) {
+    return <Navigate to='/dashboard' replace />;
+  }
+
+  return children;
+}
+
 function Layout() {
   const { user } = useSelector((state) => state.auth);
 
@@ -104,8 +118,28 @@ function App() {
           <Route path='/in-progress/:status' element={<Tasks />} />
           <Route path='/todo/:status' element={<Tasks />} />
           <Route path='/team' element={<Users />} />
+          <Route path='/pending-users' element={<Users pendingOnly />} />
           <Route path='/trashed' element={<Trash />} />
           <Route path='/task/:id' element={<TaskDetails />} />
+        </Route>
+
+        <Route
+          path='/admin'
+          element={
+            <AdminRoute>
+              <Layout />
+            </AdminRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
+          <Route path='tasks' element={<Tasks />} />
+          <Route path='completed/:status' element={<Tasks />} />
+          <Route path='in-progress/:status' element={<Tasks />} />
+          <Route path='todo/:todo' element={<Tasks />} />
+          <Route path='team' element={<Users />} />
+          <Route path='pending-users' element={<Users pendingOnly />} />
+          <Route path='trashed' element={<Trash />} />
+          <Route path='task/:id' element={<TaskDetails />} />
         </Route>
 
         <Route path='/log-in' element={<Login />} />

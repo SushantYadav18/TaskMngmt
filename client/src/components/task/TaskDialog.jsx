@@ -1,5 +1,6 @@
 import React, { Fragment, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { AiTwotoneFolderOpen } from "react-icons/ai";
 import { BsThreeDots } from "react-icons/bs";
 import { HiDuplicate } from "react-icons/hi";
@@ -21,6 +22,7 @@ const TaskDialog = ({ task }) => {
   const [openDialog, setOpenDialog] = useState(false);
 
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
   const [duplicateTask] = useDuplicateTaskMutation();
   const [trashTask] = useTrashTaskMutation();
 
@@ -67,7 +69,7 @@ const TaskDialog = ({ task }) => {
       icon: <HiDuplicate className='mr-2 h-5 w-5' aria-hidden='true' />,
       onClick: () => duplicateHandler(),
     },
-  ];
+  ].filter((item) => user?.isAdmin || item.label !== "Duplicate");
 
   return (
     <>

@@ -4,6 +4,15 @@ const USER_URL = "/user";
 
 export const userApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
+    createUser: builder.mutation({
+      query: (data) => ({
+        url: `${USER_URL}/create`,
+        method: "POST",
+        body: data,
+        credentials: "include",
+      }),
+    }),
+
     updateUser: builder.mutation({
       query: (data) => ({
         url: `${USER_URL}/profile`,
@@ -17,6 +26,23 @@ export const userApiSlice = apiSlice.injectEndpoints({
       query: () => ({
         url: `${USER_URL}/get-team`,
         method: "GET",
+        credentials: "include",
+      }),
+    }),
+
+    getPendingUsers: builder.query({
+      query: () => ({
+        url: `${USER_URL}/pending-users`,
+        method: "GET",
+        credentials: "include",
+      }),
+    }),
+
+    approveUser: builder.mutation({
+      query: ({ id, status }) => ({
+        url: `${USER_URL}/approve/${id}`,
+        method: "PUT",
+        body: { status },
         credentials: "include",
       }),
     }),
@@ -66,8 +92,11 @@ export const userApiSlice = apiSlice.injectEndpoints({
 });
 
 export const {
+  useCreateUserMutation,
   useUpdateUserMutation,
   useGetTeamListQuery,
+  useGetPendingUsersQuery,
+  useApproveUserMutation,
   useDeleteUserMutation,
   useUserActionMutation,
   useGetNotificationsQuery,
