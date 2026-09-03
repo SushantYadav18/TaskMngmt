@@ -261,11 +261,12 @@ export const changeUserPassword = async (req, res) => {
 export const activateUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
+    const nextIsActive = req.body.isActive ?? req.body.isAction;
 
     const user = await User.findById(id);
 
     if (user) {
-      user.isActive = req.body.isActive; //!user.isActive
+      user.isActive = Boolean(nextIsActive);
 
       if (user.isActive && user.status === "pending") {
         user.status = "approved";
