@@ -11,7 +11,7 @@ import Button from "../Button";
 import {
   useCreateTaskMutation,
   useUpdateTaskMutation,
-} from "../../redux/slices/api/TaskApiSlice";
+} from "../../redux/slices/api/taskApiSlice";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORIRY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];

@@ -14,7 +14,7 @@ import UserInfo from "../UserInfo";
 import Button from "../Button";
 import ConfirmatioDialog from "../Dialogs";
 import AddTask from "./AddTask";
-import { useTrashTaskMutation } from "../../redux/slices/api/TaskApiSlice";
+import { useTrashTaskMutation } from "../../redux/slices/api/taskApiSlice";
 
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,

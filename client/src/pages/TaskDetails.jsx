@@ -21,7 +21,7 @@ import Button from "../components/Button";
 import {
   useGetTaskByIdQuery,
   usePostTaskActivityMutation,
-} from "../redux/slices/api/TaskApiSlice";
+} from "../redux/slices/api/taskApiSlice";
 
 const assets = [
   "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",

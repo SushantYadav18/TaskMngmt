@@ -14,7 +14,7 @@ import ConfirmatioDialog from "../Dialogs";
 import {
   useDuplicateTaskMutation,
   useTrashTaskMutation,
-} from "../../redux/slices/api/TaskApiSlice";
+} from "../../redux/slices/api/taskApiSlice";
 
 const TaskDialog = ({ task }) => {
   const [open, setOpen] = useState(false);

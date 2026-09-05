@@ -11,7 +11,7 @@ import TaskTitle from "../components/TaskTitle";
 import BoardView from "../components/BoardView";
 import Table from "../components/task/Table";
 import AddTask from "../components/task/AddTask";
-import { useGetTasksQuery } from "../redux/slices/api/TaskApiSlice";
+import { useGetTasksQuery } from "../redux/slices/api/taskApiSlice";
 
 const TABS = [
   { title: "Board View", icon: <MdGridView /> },

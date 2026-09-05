@@ -14,7 +14,7 @@ import ConfirmatioDialog from "../components/Dialogs";
 import {
   useDeleteRestoreTaskMutation,
   useGetTasksQuery,
-} from "../redux/slices/api/TaskApiSlice";
+} from "../redux/slices/api/taskApiSlice";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 

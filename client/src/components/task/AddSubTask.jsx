@@ -4,7 +4,7 @@ import { Dialog } from "@headlessui/react";
 import Textbox from "../Textbox";
 import Button from "../Button";
 import { toast } from "sonner";
-import { useAddSubTaskMutation } from "../../redux/slices/api/TaskApiSlice";
+import { useAddSubTaskMutation } from "../../redux/slices/api/taskApiSlice";
 
 const AddSubTask = ({ open, setOpen, id }) => {
   const {

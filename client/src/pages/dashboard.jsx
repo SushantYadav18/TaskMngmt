@@ -13,7 +13,7 @@ import clsx from "clsx";
 import { Chart } from "../components/Chart";
 import { BGS, PRIOTITYSTYELS, TASK_TYPE, getInitials } from "../utils";
 import UserInfo from "../components/UserInfo";
-import { useGetDashboardStatsQuery } from "../redux/slices/api/TaskApiSlice";
+import { useGetDashboardStatsQuery } from "../redux/slices/api/taskApiSlice";
 import Loading from "../components/Loader";
 
 const TaskTable = ({ tasks }) => {
