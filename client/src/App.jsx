@@ -19,11 +19,11 @@ function AdminRoute({ children }) {
   const { user } = useSelector((state) => state.auth);
 
   if (!user) {
-    return <Navigate to='/log-in' replace />;
+    return <Navigate to="/log-in" replace />;
   }
 
   if (!user.isAdmin) {
-    return <Navigate to='/dashboard' replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
@@ -35,23 +35,25 @@ function Layout() {
   const location = useLocation();
 
   return user ? (
-    <div className='w-full h-screen flex flex-col md:flex-row'>
-      <div className='w-1/5 h-screen bg-white sticky top-0 hidden md:block'>
-        <Sidebar />
+    <div className="w-full h-screen flex flex-col md:flex-row app-shell">
+      <div className="w-[280px] xl:w-[300px] h-screen sticky top-0 hidden md:block p-4 pr-0">
+        <div className="h-full sidebar-shell rounded-[1.75rem] border border-gray-200 overflow-hidden">
+          <Sidebar />
+        </div>
       </div>
 
       <MobileSidebar />
 
-      <div className='flex-1 overflow-y-auto'>
+      <div className="flex-1 overflow-y-auto">
         <Navbar />
 
-        <div className='p-4 2xl:px-10'>
+        <div className="page-content px-5 py-6 md:px-8 lg:px-10 2xl:px-14 2xl:py-8">
           <Outlet />
         </div>
       </div>
     </div>
   ) : (
-    <Navigate to='/log-in' state={{ from: location }} replace />
+    <Navigate to="/log-in" state={{ from: location }} replace />
   );
 }
 
@@ -69,33 +71,33 @@ const MobileSidebar = () => {
       <Transition
         show={isSidebarOpen}
         as={Fragment}
-        enter='transition-opacity duration-700'
-        enterFrom='opacity-x-10'
-        enterTo='opacity-x-100'
-        leave='transition-opacity duration-700'
-        leaveFrom='opacity-x-100'
-        leaveTo='opacity-x-0'
+        enter="transition-opacity duration-700"
+        enterFrom="opacity-x-10"
+        enterTo="opacity-x-100"
+        leave="transition-opacity duration-700"
+        leaveFrom="opacity-x-100"
+        leaveTo="opacity-x-0"
       >
         {(ref) => (
           <div
             ref={(node) => (mobileMenuRef.current = node)}
             className={clsx(
-              "md:hidden w-full h-full bg-black/40 transition-all duration-700 transform ",
-              isSidebarOpen ? "translate-x-0" : "translate-x-full"
+              "md:hidden w-full h-full bg-black/50 backdrop-blur-sm transition-all duration-700 transform ",
+              isSidebarOpen ? "translate-x-0" : "translate-x-full",
             )}
             onClick={() => closeSidebar()}
           >
-            <div className='bg-white w-3/4 h-full'>
-              <div className='w-full flex justify-end px-5 mt-5'>
+            <div className="bg-white w-[82%] max-w-sm h-full">
+              <div className="w-full flex justify-end px-5 mt-5">
                 <button
                   onClick={() => closeSidebar()}
-                  className='flex justify-end items-end'
+                  className="icon-button w-10 h-10 rounded-full flex items-center justify-center bg-gray-100"
                 >
-                  <IoClose size={25} />
+                  <IoClose size={22} />
                 </button>
               </div>
 
-              <div className='-mt-10'>
+              <div className="-mt-6">
                 <Sidebar />
               </div>
             </div>
@@ -108,23 +110,23 @@ const MobileSidebar = () => {
 
 function App() {
   return (
-    <main className='w-full min-h-screen bg-[#f3f4f6] '>
+    <main className="w-full min-h-screen app-background">
       <Routes>
         <Route element={<Layout />}>
-          <Route index path='/' element={<Navigate to='/dashboard' />} />
-          <Route path='/dashboard' element={<Dashboard />} />
-          <Route path='/tasks' element={<Tasks />} />
-          <Route path='/completed/:status' element={<Tasks />} />
-          <Route path='/in-progress/:status' element={<Tasks />} />
-          <Route path='/todo/:status' element={<Tasks />} />
-          <Route path='/team' element={<Users />} />
-          <Route path='/pending-users' element={<Users pendingOnly />} />
-          <Route path='/trashed' element={<Trash />} />
-          <Route path='/task/:id' element={<TaskDetails />} />
+          <Route index path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/completed/:status" element={<Tasks />} />
+          <Route path="/in-progress/:status" element={<Tasks />} />
+          <Route path="/todo/:status" element={<Tasks />} />
+          <Route path="/team" element={<Users />} />
+          <Route path="/pending-users" element={<Users pendingOnly />} />
+          <Route path="/trashed" element={<Trash />} />
+          <Route path="/task/:id" element={<TaskDetails />} />
         </Route>
 
         <Route
-          path='/admin'
+          path="/admin"
           element={
             <AdminRoute>
               <Layout />
@@ -132,17 +134,17 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path='tasks' element={<Tasks />} />
-          <Route path='completed/:status' element={<Tasks />} />
-          <Route path='in-progress/:status' element={<Tasks />} />
-          <Route path='todo/:todo' element={<Tasks />} />
-          <Route path='team' element={<Users />} />
-          <Route path='pending-users' element={<Users pendingOnly />} />
-          <Route path='trashed' element={<Trash />} />
-          <Route path='task/:id' element={<TaskDetails />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="completed/:status" element={<Tasks />} />
+          <Route path="in-progress/:status" element={<Tasks />} />
+          <Route path="todo/:todo" element={<Tasks />} />
+          <Route path="team" element={<Users />} />
+          <Route path="pending-users" element={<Users pendingOnly />} />
+          <Route path="trashed" element={<Trash />} />
+          <Route path="task/:id" element={<TaskDetails />} />
         </Route>
 
-        <Route path='/log-in' element={<Login />} />
+        <Route path="/log-in" element={<Login />} />
       </Routes>
 
       <Toaster richColors />

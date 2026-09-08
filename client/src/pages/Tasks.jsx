@@ -50,40 +50,46 @@ const Tasks = () => {
   const tasks = data?.tasks || [];
 
   return isLoading ? (
-    <div className='py-10'>
+    <div className="py-10">
       <Loading />
     </div>
   ) : (
-    <div className='w-full'>
-      <div className='flex items-center justify-between mb-4'>
-        <Title title={status ? `${status} Tasks` : "Tasks"} />
+    <div className="w-full">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+        <div>
+          <p className="page-kicker">Work</p>
+          <Title title={status ? `${status} Tasks` : "Tasks"} className="mt-2" />
+          <p className="text-gray-500 mt-2">
+            Switch between a spacious board and a clean list.
+          </p>
+        </div>
 
         {!status && (
           <Button
             onClick={() => setOpen(true)}
-            label='Create Task'
-            icon={<IoMdAdd className='text-lg' />}
-            className='flex flex-row-reverse gap-1 items-center bg-blue-600 text-white rounded-md py-2 2xl:py-2.5'
+            label="Create Task"
+            icon={<IoMdAdd className="text-lg" />}
+            className="flex flex-row-reverse gap-2 items-center bg-indigo-600 text-white rounded-2xl py-3 px-5 font-semibold shadow-glow"
           />
         )}
       </div>
 
       <Tabs tabs={TABS} setSelected={setSelected}>
         {!status && (
-          <div className='w-full flex justify-between gap-4 md:gap-x-12 py-4'>
-            <TaskTitle label='To Do' className={TASK_TYPE.todo} />
+          <div className="w-full flex flex-col md:flex-row justify-between gap-4 md:gap-6 pb-2">
+            <TaskTitle label="To Do" className={TASK_TYPE.todo} />
             <TaskTitle
-              label='In Progress'
+              label="In Progress"
               className={TASK_TYPE["in progress"]}
             />
-            <TaskTitle label='completed' className={TASK_TYPE.completed} />
+            <TaskTitle label="completed" className={TASK_TYPE.completed} />
           </div>
         )}
 
         {selected !== 1 ? (
           <BoardView tasks={tasks} />
         ) : (
-          <div className='w-full'>
+          <div className="w-full">
             <Table tasks={tasks} />
           </div>
         )}

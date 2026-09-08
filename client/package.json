@@ -25,6 +25,7 @@
     "sonner": "^1.4.0"
   },
   "devDependencies": {
+    "@rolldown/pluginutils": "^1.0.1",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^6.1.1",

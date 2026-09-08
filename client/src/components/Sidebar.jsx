@@ -71,38 +71,50 @@ const Sidebar = () => {
     dispatch(setOpenSidebar(false));
   };
 
-  const NavLink = ({ el }) => {
-    return (
-      <Link
-        to={el.link}
-        onClick={closeSidebar}
-        className={clsx(
-          "w-full lg:w-3/4 flex gap-2 px-3 py-2 rounded-full items-center text-gray-800 text-base hover:bg-[#2564ed2d]",
-          path === el.link.split("/")[0] ? "bg-blue-700 text-neutral-100" : ""
-        )}
-      >
-        {el.icon}
-        <span className='hover:text-[#2564ed]'>{el.label}</span>
-      </Link>
-    );
-  };
-  return (
-    <div className='w-full  h-full flex flex-col gap-6 p-5'>
-      <h1 className='flex gap-1 items-center'>
-        <p className='bg-blue-600 p-2 rounded-full'>
-          <MdOutlineAddTask className='text-white text-2xl font-black' />
-        </p>
-        <span className='text-2xl font-bold text-black'>TaskMe</span>
-      </h1>
+  const NavLink = ({ el }) => (
+    <Link
+      to={el.link}
+      onClick={closeSidebar}
+      className={clsx(
+        "w-full flex gap-3 px-3.5 py-3 rounded-2xl items-center text-[15px] font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all",
+        path === el.link.split("/")[0] &&
+          "bg-indigo-600 text-white shadow-glow hover:bg-indigo-600 hover:text-white",
+      )}
+    >
+      <span className="text-lg">{el.icon}</span>
+      <span>{el.label}</span>
+    </Link>
+  );
 
-      <div className='flex-1 flex flex-col gap-y-5 py-8'>
+  return (
+    <div className="w-full h-full flex flex-col gap-8 p-6 sidebar-content">
+      <div className="flex gap-3 items-center">
+        <p className="bg-indigo-600 p-2.5 rounded-2xl shadow-glow">
+          <MdOutlineAddTask className="text-white text-2xl" />
+        </p>
+        <div>
+          <span className="block text-xl font-extrabold text-gray-900 tracking-tight">
+            TaskMe
+          </span>
+          <span className="text-xs font-medium text-gray-500">
+            Workspace
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto pr-1">
+        <p className="page-kicker px-3 mb-2">Menu</p>
         {sidebarLinks.map((link) => (
           <NavLink el={link} key={link.label} />
         ))}
       </div>
 
-      <div className=''>
-        <button className='w-full flex gap-2 p-2 items-center text-lg text-gray-800'>
+      <div className="rounded-2xl bg-gray-100 p-4">
+        <p className="text-sm font-semibold text-gray-800">Need a hand?</p>
+        <p className="text-xs text-gray-500 mt-1 leading-5">
+          Keep work organized with boards, lists, and a shared team space.
+        </p>
+        <button className="mt-4 w-full flex gap-3 p-2.5 items-center justify-center text-sm font-semibold text-gray-600 hover:text-indigo-600 rounded-xl hover:bg-white transition-colors">
           <MdSettings />
           <span>Settings</span>
         </button>

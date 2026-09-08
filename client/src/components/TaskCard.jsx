@@ -27,57 +27,59 @@ const TaskCard = ({ task }) => {
 
   return (
     <>
-      <div className='w-full h-fit bg-white shadow-md p-4 rounded'>
-        <div className='w-full flex justify-between'>
+      <div className="w-full h-fit surface-card p-6">
+        <div className="w-full flex justify-between items-start">
           <div
             className={clsx(
-              "flex flex-1 gap-1 items-center text-sm font-medium",
-              PRIOTITYSTYELS[task?.priority]
+              "flex flex-1 gap-1 items-center text-sm font-semibold",
+              PRIOTITYSTYELS[task?.priority],
             )}
           >
-            <span className='text-lg'>{ICONS[task?.priority]}</span>
-            <span className='uppercase'>{task?.priority} Priority</span>
+            <span className="text-lg">{ICONS[task?.priority]}</span>
+            <span className="uppercase tracking-wide">{task?.priority} Priority</span>
           </div>
 
           <TaskDialog task={task} />
         </div>
 
         <>
-          <div className='flex items-center gap-2'>
+          <div className="flex items-center gap-3 mt-4">
             <div
-              className={clsx("w-4 h-4 rounded-full", TASK_TYPE[task.stage])}
+              className={clsx("w-2.5 h-2.5 rounded-full", TASK_TYPE[task.stage])}
             />
-            <h4 className='line-clamp-1 text-black'>{task?.title}</h4>
+            <h4 className="line-clamp-2 text-black font-bold text-lg leading-snug">
+              {task?.title}
+            </h4>
           </div>
-          <span className='text-sm text-gray-600'>
+          <span className="inline-block mt-3 text-sm text-gray-500">
             {formatDate(new Date(task?.date))}
           </span>
         </>
 
-        <div className='w-full border-t border-gray-200 my-2' />
-        <div className='flex items-center justify-between mb-2'>
-          <div className='flex items-center gap-3'>
-            <div className='flex gap-1 items-center text-sm text-gray-600'>
+        <div className="w-full border-t border-gray-200 my-4" />
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-4">
+            <div className="flex gap-1.5 items-center text-sm text-gray-600">
               <BiMessageAltDetail />
               <span>{task?.activities?.length}</span>
             </div>
-            <div className='flex gap-1 items-center text-sm text-gray-600 '>
+            <div className="flex gap-1.5 items-center text-sm text-gray-600 ">
               <MdAttachFile />
               <span>{task?.assets?.length}</span>
             </div>
-            <div className='flex gap-1 items-center text-sm text-gray-600 '>
+            <div className="flex gap-1.5 items-center text-sm text-gray-600 ">
               <FaList />
               <span>0/{task?.subTasks?.length}</span>
             </div>
           </div>
 
-          <div className='flex flex-row-reverse'>
+          <div className="flex flex-row-reverse">
             {task?.team?.map((m, index) => (
               <div
                 key={index}
                 className={clsx(
-                  "w-7 h-7 rounded-full text-white flex items-center justify-center text-sm -mr-1",
-                  BGS[index % BGS?.length]
+                  "w-8 h-8 rounded-full text-white flex items-center justify-center text-sm -mr-1 ring-2 ring-white",
+                  BGS[index % BGS?.length],
                 )}
               >
                 <UserInfo user={m} />
@@ -86,38 +88,37 @@ const TaskCard = ({ task }) => {
           </div>
         </div>
 
-        {/* sub tasks */}
         {task?.subTasks?.length > 0 ? (
-          <div className='py-4 border-t border-gray-200'>
-            <h5 className='text-base line-clamp-1 text-black'>
+          <div className="py-4 border-t border-gray-200">
+            <h5 className="text-base line-clamp-1 text-black font-semibold">
               {task?.subTasks[0].title}
             </h5>
 
-            <div className='p-4 space-x-8'>
-              <span className='text-sm text-gray-600'>
+            <div className="pt-3 flex items-center gap-3">
+              <span className="text-sm text-gray-600">
                 {formatDate(new Date(task?.subTasks[0]?.date))}
               </span>
-              <span className='bg-blue-600/10 px-3 py-1 rounded0full text-blue-700 font-medium'>
+              <span className="bg-indigo-600/10 px-3 py-1 rounded-full text-indigo-700 font-medium text-sm">
                 {task?.subTasks[0].tag}
               </span>
             </div>
           </div>
         ) : (
           <>
-            <div className='py-4 border-t border-gray-200'>
-              <span className='text-gray-500'>No Sub Task</span>
+            <div className="py-4 border-t border-gray-200">
+              <span className="text-gray-500 text-sm">No sub-task yet</span>
             </div>
           </>
         )}
 
-        <div className='w-full pb-2'>
+        <div className="w-full pt-1">
           <button
             onClick={() => setOpen(true)}
             disabled={false}
-            className='w-full flex gap-4 items-center text-sm text-gray-500 font-semibold disabled:cursor-not-allowed disabled::text-gray-300'
+            className="w-full flex gap-3 items-center justify-center text-sm text-gray-600 font-semibold disabled:cursor-not-allowed rounded-xl py-2.5 hover:bg-gray-100"
           >
-            <IoMdAdd className='text-lg' />
-            <span>ADD SUBTASK</span>
+            <IoMdAdd className="text-lg" />
+            <span>Add subtask</span>
           </button>
         </div>
       </div>
