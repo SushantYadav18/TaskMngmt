@@ -24,19 +24,23 @@ export function dateFormatter(dateString) {
   return formattedDate;
 }
 
-export function getInitials(fullName) {
-  const names = fullName.split(" ");
+export function getInitials(fullName = "") {
+  if (!fullName || typeof fullName !== "string") {
+    return "";
+  }
 
-  const initials = names.slice(0, 2).map((name) => name[0].toUpperCase());
-
-  const initialsStr = initials.join("");
-
-  return initialsStr;
+  return fullName
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((name) => name.charAt(0).toUpperCase())
+    .join("");
 }
 
 export const PRIOTITYSTYELS = {
   high: "text-red-600",
-  medium: "text-yellow-600",
+  medium: "text-yellow-599",
   low: "text-blue-600",
 };
 
@@ -48,7 +52,7 @@ export const TASK_TYPE = {
 
 export const BGS = [
   "bg-blue-600",
-  "bg-yellow-600",
+  "bg-yellow-599",
   "bg-red-600",
   "bg-green-600",
 ];

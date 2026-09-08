@@ -114,8 +114,12 @@ const UserTable = ({ users }) => {
           </div>
 
           <div>
-            <p className="font-semibold text-gray-900">{user.name}</p>
-            <span className="text-xs text-gray-500">{user?.role}</span>
+            <p className="font-semibold text-gray-900">
+              {user?.name || "Unknown User"}
+            </p>
+            <span className="text-xs text-gray-500">
+              {user?.role || "No Role"}
+            </span>
           </div>
         </div>
       </td>
@@ -206,7 +210,9 @@ const Dashboard = () => {
       <div className="w-full min-h-[150px] surface-card p-6 flex items-center justify-between">
         <div className="h-full flex flex-1 flex-col justify-between gap-4">
           <p className="text-sm font-semibold text-gray-500">{label}</p>
-          <span className="text-4xl font-extrabold tracking-tight">{count}</span>
+          <span className="text-4xl font-extrabold tracking-tight">
+            {count}
+          </span>
           <span className="text-sm text-gray-400">{hint}</span>
         </div>
 

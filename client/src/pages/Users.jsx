@@ -73,7 +73,8 @@ const Users = ({ pendingOnly = false }) => {
   const deleteHandler = async () => {
     try {
       const result = await deleteUser(selected).unwrap();
-      await refetch();
+      await refetchTeam();
+      await refetchPending();
       toast.success(result.message || "User deleted successfully!");
 
       setSelected(null);
