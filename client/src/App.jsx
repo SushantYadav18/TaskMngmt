@@ -13,6 +13,9 @@ import Tasks from "./pages/Tasks";
 import Trash from "./pages/Trash";
 import Users from "./pages/Users";
 import Dashboard from "./pages/dashboard";
+import Teams from "./pages/Teams";
+import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
 import { setOpenSidebar } from "./redux/slices/authSlice";
 
 function AdminRoute({ children }) {
@@ -119,7 +122,17 @@ function App() {
           <Route path="/completed/:status" element={<Tasks />} />
           <Route path="/in-progress/:status" element={<Tasks />} />
           <Route path="/todo/:status" element={<Tasks />} />
-          <Route path="/team" element={<Users />} />
+          <Route path="/team" element={<Teams />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetails />} />
+          <Route
+            path="/teams"
+            element={
+              <AdminRoute>
+                <Teams />
+              </AdminRoute>
+            }
+          />
           <Route path="/pending-users" element={<Users pendingOnly />} />
           <Route path="/trashed" element={<Trash />} />
           <Route path="/task/:id" element={<TaskDetails />} />
@@ -138,7 +151,8 @@ function App() {
           <Route path="completed/:status" element={<Tasks />} />
           <Route path="in-progress/:status" element={<Tasks />} />
           <Route path="todo/:todo" element={<Tasks />} />
-          <Route path="team" element={<Users />} />
+          <Route path="team" element={<Teams />} />
+          <Route path="teams" element={<Teams />} />
           <Route path="pending-users" element={<Users pendingOnly />} />
           <Route path="trashed" element={<Trash />} />
           <Route path="task/:id" element={<TaskDetails />} />

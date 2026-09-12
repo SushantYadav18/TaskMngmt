@@ -1,5 +1,6 @@
 import Team from "../models/team.js";
 import User from "../models/user.js";
+import Project from "../models/project.js";
 import { ROLES, ROLE_VALUES, normalizeRole } from "../utils/roles.js";
 
 const getTeamUsers = (memberIds = []) =>
@@ -225,6 +226,65 @@ export const moveTeamMember = async (req, res) => {
       message: "Team member moved successfully.",
       user: member,
       destinationTeam,
+    });
+  } catch (error) {
+    res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const deleteTeam = async (req, res) => {
+  try {
+    if (!req.user?.isAdmin) {
+      return res.status(403).json({
+        status: false,
+        message: "Only administrators can delete teams.",
+      });
+    }
+
+    const team = await Team.findById(req.params.id);
+    if (!team) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Team not found." });
+    }
+
+    const [members, projectCount] = await Promise.all([
+      User.find({ team: team._id }).select("_id name role"),
+      Project.countDocuments({ teams: team._id }),
+    ]);
+    const teamMemberIds = new Set(team.members.map(String));
+    const nonLeaderMembers = members.filter(
+      (member) => String(member._id) !== String(team.leader),
+    );
+    const referencedNonLeaders = [...teamMemberIds].filter(
+      (memberId) => memberId !== String(team.leader),
+    );
+
+    if (projectCount > 0) {
+      return res.status(409).json({
+        status: false,
+        message:
+          "This team cannot be deleted while it is assigned to an active project.",
+      });
+    }
+
+    if (nonLeaderMembers.length > 0 || referencedNonLeaders.length > 0) {
+      return res.status(409).json({
+        status: false,
+        message:
+          "Remove all Associates, Juniors, and Interns from this team before deleting it.",
+      });
+    }
+
+    await User.updateOne(
+      { _id: team.leader, team: team._id },
+      { $set: { team: null } },
+    );
+    await Team.deleteOne({ _id: team._id });
+
+    res.status(200).json({
+      status: true,
+      message: "Team deleted successfully.",
     });
   } catch (error) {
     res.status(400).json({ status: false, message: error.message });

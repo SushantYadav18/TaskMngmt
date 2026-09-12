@@ -36,7 +36,9 @@ const TaskCard = ({ task }) => {
             )}
           >
             <span className="text-lg">{ICONS[task?.priority]}</span>
-            <span className="uppercase tracking-wide">{task?.priority} Priority</span>
+            <span className="uppercase tracking-wide">
+              {task?.priority} Priority
+            </span>
           </div>
 
           <TaskDialog task={task} />
@@ -45,7 +47,10 @@ const TaskCard = ({ task }) => {
         <>
           <div className="flex items-center gap-3 mt-4">
             <div
-              className={clsx("w-2.5 h-2.5 rounded-full", TASK_TYPE[task.stage])}
+              className={clsx(
+                "w-2.5 h-2.5 rounded-full",
+                TASK_TYPE[task.stage],
+              )}
             />
             <h4 className="line-clamp-2 text-black font-bold text-lg leading-snug">
               {task?.title}
@@ -74,17 +79,18 @@ const TaskCard = ({ task }) => {
           </div>
 
           <div className="flex flex-row-reverse">
-            {task?.team?.map((m, index) => (
-              <div
-                key={index}
-                className={clsx(
-                  "w-8 h-8 rounded-full text-white flex items-center justify-center text-sm -mr-1 ring-2 ring-white",
-                  BGS[index % BGS?.length],
-                )}
-              >
-                <UserInfo user={m} />
-              </div>
-            ))}
+            {task?.assignee &&
+              [task.assignee].map((m, index) => (
+                <div
+                  key={index}
+                  className={clsx(
+                    "w-8 h-8 rounded-full text-white flex items-center justify-center text-sm -mr-1 ring-2 ring-white",
+                    BGS[index % BGS?.length],
+                  )}
+                >
+                  <UserInfo user={m} />
+                </div>
+              ))}
           </div>
         </div>
 

@@ -44,6 +44,16 @@ export const taskApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["Task"],
     }),
 
+    delegateTask: builder.mutation({
+      query: ({ id, assignee }) => ({
+        url: `${TASK_URL}/delegate/${id}`,
+        method: "POST",
+        body: { assignee },
+        credentials: "include",
+      }),
+      invalidatesTags: ["Task"],
+    }),
+
     updateTask: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `${TASK_URL}/update/${id}`,
@@ -92,6 +102,34 @@ export const taskApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["Task"],
     }),
 
+    getTaskDependencies: builder.query({
+      query: (id) => ({
+        url: `${TASK_URL}/${id}/dependencies`,
+        method: "GET",
+        credentials: "include",
+      }),
+      providesTags: ["Task"],
+    }),
+
+    addTaskDependency: builder.mutation({
+      query: ({ id, predecessorTask, dependencyType = "FS" }) => ({
+        url: `${TASK_URL}/${id}/dependencies`,
+        method: "POST",
+        body: { predecessorTask, dependencyType },
+        credentials: "include",
+      }),
+      invalidatesTags: ["Task"],
+    }),
+
+    removeTaskDependency: builder.mutation({
+      query: ({ id, dependencyId }) => ({
+        url: `${TASK_URL}/${id}/dependencies/${dependencyId}`,
+        method: "DELETE",
+        credentials: "include",
+      }),
+      invalidatesTags: ["Task"],
+    }),
+
     postTaskActivity: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `${TASK_URL}/activity/${id}`,
@@ -109,10 +147,14 @@ export const {
   useGetTasksQuery,
   useGetTaskByIdQuery,
   useCreateTaskMutation,
+  useDelegateTaskMutation,
   useUpdateTaskMutation,
   useTrashTaskMutation,
   useDeleteRestoreTaskMutation,
   useDuplicateTaskMutation,
   useAddSubTaskMutation,
+  useGetTaskDependenciesQuery,
+  useAddTaskDependencyMutation,
+  useRemoveTaskDependencyMutation,
   usePostTaskActivityMutation,
 } = taskApiSlice;

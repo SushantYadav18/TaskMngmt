@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import Task from "../models/task.js";
 import User from "../models/user.js";
+import Project from "../models/project.js";
 
 const protectRoute = async (req, res, next) => {
   try {
@@ -67,9 +68,17 @@ const canAccessTask = async (req, res, next) => {
         .json({ status: false, message: "Task not found." });
     }
 
+    let isProjectLeader = false;
+    if (task.project) {
+      const project = await Project.findById(task.project).select(
+        "projectLeader",
+      );
+      isProjectLeader =
+        String(project?.projectLeader) === String(req.user.userId);
+    }
     const isAssigned = String(task.assignee) === String(req.user.userId);
 
-    if (!req.user?.isAdmin && !isAssigned) {
+    if (!req.user?.isAdmin && !isAssigned && !isProjectLeader) {
       return res.status(403).json({
         status: false,
         message: "You are not assigned to this task.",

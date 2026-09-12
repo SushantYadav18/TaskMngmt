@@ -6,7 +6,7 @@ import {
   MdSettings,
   MdTaskAlt,
 } from "react-icons/md";
-import { FaTasks, FaTrashAlt, FaUsers } from "react-icons/fa";
+import { FaTasks, FaTrashAlt, FaUsers, FaFolderOpen } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
 import { setOpenSidebar } from "../redux/slices/authSlice";
@@ -44,6 +44,11 @@ const linkData = [
     icon: <FaUsers />,
   },
   {
+    label: "Projects",
+    link: "projects",
+    icon: <FaFolderOpen />,
+  },
+  {
     label: "Pending",
     link: "pending-users",
     icon: <MdOutlinePendingActions />,
@@ -65,7 +70,9 @@ const Sidebar = () => {
 
   const sidebarLinks = user?.isAdmin
     ? linkData
-    : linkData.filter((link) => link.link !== "pending-users");
+    : linkData.filter(
+        (link) => !link.adminOnly && link.link !== "pending-users",
+      );
 
   const closeSidebar = () => {
     dispatch(setOpenSidebar(false));
@@ -96,9 +103,7 @@ const Sidebar = () => {
           <span className="block text-xl font-extrabold text-gray-900 tracking-tight">
             TaskMe
           </span>
-          <span className="text-xs font-medium text-gray-500">
-            Workspace
-          </span>
+          <span className="text-xs font-medium text-gray-500">Workspace</span>
         </div>
       </div>
 

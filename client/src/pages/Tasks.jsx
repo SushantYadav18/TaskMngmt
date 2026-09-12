@@ -12,6 +12,7 @@ import BoardView from "../components/BoardView";
 import Table from "../components/task/Table";
 import AddTask from "../components/task/AddTask";
 import { useGetTasksQuery } from "../redux/slices/api/taskApiSlice";
+import { useSelector } from "react-redux";
 
 const TABS = [
   { title: "Board View", icon: <MdGridView /> },
@@ -28,6 +29,7 @@ const Tasks = () => {
   const params = useParams();
   const [selected, setSelected] = useState(0);
   const [open, setOpen] = useState(false);
+  const { user } = useSelector((state) => state.auth);
 
   const rawStatus = decodeURIComponent(params?.status || "").trim();
   const normalizeStage = (value) => {
@@ -58,13 +60,16 @@ const Tasks = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
           <p className="page-kicker">Work</p>
-          <Title title={status ? `${status} Tasks` : "Tasks"} className="mt-2" />
+          <Title
+            title={status ? `${status} Tasks` : "Tasks"}
+            className="mt-2"
+          />
           <p className="text-gray-500 mt-2">
             Switch between a spacious board and a clean list.
           </p>
         </div>
 
-        {!status && (
+        {!status && user?.isAdmin && (
           <Button
             onClick={() => setOpen(true)}
             label="Create Task"
