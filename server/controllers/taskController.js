@@ -1,22 +1,28 @@
 import Notice from "../models/notification.js";
 import Task from "../models/task.js";
 import User from "../models/user.js";
+import { canDelegateTo } from "../utils/roles.js";
 
 export const createTask = async (req, res) => {
   try {
     const { userId } = req.user;
 
-    const { title, team, stage, date, priority, assets } = req.body;
+    const { title, assignee, stage, date, priority, assets } = req.body;
+    const creator = await User.findById(userId);
+    const target = await User.findById(assignee);
 
-    let text = "New task has been assigned to you";
-    if (team?.length > 1) {
-      text = text + ` and ${team?.length - 1} others.`;
+    if (!creator || !target || !canDelegateTo(creator, target)) {
+      return res.status(403).json({
+        status: false,
+        message: "Tasks can only be created for a Team Leader.",
+      });
     }
 
+    let text = "New task has been assigned to you";
     text =
       text +
       ` The task priority is set a ${priority} priority, so check and act accordingly. The task date is ${new Date(
-        date
+        date,
       ).toDateString()}. Thank you!!!`;
 
     const activity = {
@@ -27,7 +33,8 @@ export const createTask = async (req, res) => {
 
     const task = await Task.create({
       title,
-      team,
+      createdBy: userId,
+      assignee,
       stage: stage.toLowerCase(),
       date,
       priority: priority.toLowerCase(),
@@ -36,7 +43,7 @@ export const createTask = async (req, res) => {
     });
 
     await Notice.create({
-      team,
+      team: [assignee],
       text,
       task: task._id,
     });
@@ -57,24 +64,19 @@ export const duplicateTask = async (req, res) => {
     const task = await Task.findById(id);
 
     const newTask = await Task.create({
-      ...task,
       title: task.title + " - Duplicate",
+      createdBy: req.user.userId,
+      assignee: task.assignee,
+      parentTask: task._id,
+      subTasks: task.subTasks,
+      assets: task.assets,
+      priority: task.priority,
+      stage: task.stage,
+      date: task.date,
     });
-
-    newTask.team = task.team;
-    newTask.subTasks = task.subTasks;
-    newTask.assets = task.assets;
-    newTask.priority = task.priority;
-    newTask.stage = task.stage;
-
-    await newTask.save();
 
     //alert users of the task
     let text = "New task has been assigned to you";
-    if (task.team.length > 1) {
-      text = text + ` and ${task.team.length - 1} others.`;
-    }
-
     text =
       text +
       ` The task priority is set a ${
@@ -82,7 +84,7 @@ export const duplicateTask = async (req, res) => {
       } priority, so check and act accordingly. The task date is ${task.date.toDateString()}. Thank you!!!`;
 
     await Notice.create({
-      team: task.team,
+      team: [task.assignee],
       text,
       task: newTask._id,
     });
@@ -142,19 +144,13 @@ export const dashboardStatistics = async (req, res) => {
       ? await Task.find({
           isTrashed: false,
         })
-          .populate({
-            path: "team",
-            select: "name role title email",
-          })
+          .populate("assignee createdBy", "name role title email")
           .sort({ _id: -1 })
       : await Task.find({
           isTrashed: false,
-          team: { $all: [userId] },
+          assignee: userId,
         })
-          .populate({
-            path: "team",
-            select: "name role title email",
-          })
+          .populate("assignee createdBy", "name role title email")
           .sort({ _id: -1 });
 
     const users = await User.find({ status: "approved", isActive: true })
@@ -182,7 +178,7 @@ export const dashboardStatistics = async (req, res) => {
 
         result[priority] = (result[priority] || 0) + 1;
         return result;
-      }, {})
+      }, {}),
     ).map(([name, total]) => ({ name, total }));
 
     // calculate total tasks
@@ -221,7 +217,7 @@ export const getTasks = async (req, res) => {
     let query = { isTrashed: Boolean(isTrashed) };
 
     if (!req.user.isAdmin) {
-      query.team = req.user.userId;
+      query.assignee = req.user.userId;
     }
 
     if (stage) {
@@ -229,10 +225,7 @@ export const getTasks = async (req, res) => {
     }
 
     let queryResult = Task.find(query)
-      .populate({
-        path: "team",
-        select: "name title email",
-      })
+      .populate("assignee createdBy", "name role title email")
       .sort({ _id: -1 });
 
     const tasks = await queryResult;
@@ -252,10 +245,7 @@ export const getTask = async (req, res) => {
     const { id } = req.params;
 
     const task = await Task.findById(id)
-      .populate({
-        path: "team",
-        select: "name title role email",
-      })
+      .populate("assignee createdBy", "name title role email")
       .populate({
         path: "activities.by",
         select: "name",
@@ -301,7 +291,7 @@ export const createSubTask = async (req, res) => {
 export const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, date, team, stage, priority, assets } = req.body;
+    const { title, date, stage, priority, assets } = req.body;
 
     const task = await Task.findById(id);
 
@@ -310,10 +300,6 @@ export const updateTask = async (req, res) => {
     task.priority = priority.toLowerCase();
     task.assets = assets;
     task.stage = stage.toLowerCase();
-    if (req.user.isAdmin) {
-      task.team = team;
-    }
-
     await task.save();
 
     res
@@ -322,6 +308,43 @@ export const updateTask = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const delegateTask = async (req, res) => {
+  try {
+    const target = await User.findById(req.body.assignee);
+    const source = await User.findById(req.user.userId);
+
+    if (!target || !source || !canDelegateTo(source, target)) {
+      return res.status(403).json({
+        status: false,
+        message: "You cannot delegate this task to that user.",
+      });
+    }
+
+    req.task.assignee = target._id;
+    req.task.parentTask = req.task.parentTask || req.task._id;
+    req.task.activities.push({
+      type: "assigned",
+      activity: `Task delegated to ${target.name}.`,
+      by: req.user.userId,
+    });
+    await req.task.save();
+
+    await Notice.create({
+      team: [target._id],
+      text: "A task has been delegated to you.",
+      task: req.task._id,
+    });
+
+    res.status(200).json({
+      status: true,
+      task: req.task,
+      message: "Task delegated successfully.",
+    });
+  } catch (error) {
+    res.status(400).json({ status: false, message: error.message });
   }
 };
 
@@ -358,7 +381,9 @@ export const deleteRestoreTask = async (req, res) => {
       const resp = await Task.findById(id);
 
       if (!resp) {
-        return res.status(404).json({ status: false, message: "Task not found." });
+        return res
+          .status(404)
+          .json({ status: false, message: "Task not found." });
       }
 
       resp.isTrashed = false;
@@ -366,7 +391,7 @@ export const deleteRestoreTask = async (req, res) => {
     } else if (actionType === "restoreAll") {
       await Task.updateMany(
         { isTrashed: true },
-        { $set: { isTrashed: false } }
+        { $set: { isTrashed: false } },
       );
     }
 

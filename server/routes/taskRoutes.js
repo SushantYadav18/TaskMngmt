@@ -2,6 +2,7 @@ import express from "express";
 import {
   createSubTask,
   createTask,
+  delegateTask,
   dashboardStatistics,
   deleteRestoreTask,
   duplicateTask,
@@ -20,6 +21,7 @@ import {
 const router = express.Router();
 
 router.post("/create", protectRoute, isAdminRoute, createTask);
+router.post("/delegate/:id", protectRoute, canAccessTask, delegateTask);
 router.post("/duplicate/:id", protectRoute, isAdminRoute, duplicateTask);
 router.post("/activity/:id", protectRoute, canAccessTask, postTaskActivity);
 
@@ -35,7 +37,7 @@ router.delete(
   "/delete-restore/:id?",
   protectRoute,
   canAccessTask,
-  deleteRestoreTask
+  deleteRestoreTask,
 );
 
 export default router;

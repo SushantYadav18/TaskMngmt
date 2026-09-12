@@ -10,12 +10,14 @@ const protectRoute = async (req, res, next) => {
       const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
       const resp = await User.findById(decodedToken.userId).select(
-        "isAdmin email"
+        "isAdmin email role team",
       );
 
       req.user = {
         email: resp.email,
         isAdmin: resp.isAdmin,
+        role: resp.role,
+        team: resp.team,
         userId: decodedToken.userId,
       };
 
@@ -60,12 +62,12 @@ const canAccessTask = async (req, res, next) => {
     const task = await Task.findById(req.params.id);
 
     if (!task) {
-      return res.status(404).json({ status: false, message: "Task not found." });
+      return res
+        .status(404)
+        .json({ status: false, message: "Task not found." });
     }
 
-    const isAssigned = task.team.some(
-      (memberId) => String(memberId) === String(req.user.userId)
-    );
+    const isAssigned = String(task.assignee) === String(req.user.userId);
 
     if (!req.user?.isAdmin && !isAssigned) {
       return res.status(403).json({

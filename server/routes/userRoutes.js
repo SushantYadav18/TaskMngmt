@@ -14,6 +14,7 @@ import {
   updateUserApproval,
   updateUserProfile,
 } from "../controllers/userController.js";
+import { ROLES, ROLE_VALUES, normalizeRole } from "../utils/roles.js";
 
 const router = express.Router();
 
@@ -23,26 +24,51 @@ router.post("/login", loginUser);
 router.post("/logout", logoutUser);
 router.post("/google", async (req, res) => {
   try {
-    const { email, name, role = "Member", title = "Team Member", password, googleAuth } = req.body;
+    const {
+      email,
+      name,
+      role = ROLES.ASSOCIATE,
+      title = "Team Member",
+      password,
+      googleAuth,
+    } = req.body;
+    const normalizedRole = normalizeRole(role);
 
     if (!email || !name) {
-      return res.status(400).json({ status: false, message: "Email and name are required." });
+      return res
+        .status(400)
+        .json({ status: false, message: "Email and name are required." });
+    }
+
+    if (!ROLE_VALUES.includes(normalizedRole)) {
+      return res.status(400).json({ status: false, message: "Invalid role." });
     }
 
     const normalizedEmail = email.toLowerCase();
-    let user = await import("../models/user.js").then((m) => m.default.findOne({ email: normalizedEmail }));
+    let user = await import("../models/user.js").then((m) =>
+      m.default.findOne({ email: normalizedEmail }),
+    );
 
     if (user) {
       if (user.status === "pending") {
-        return res.status(403).json({ status: false, message: "Your account is pending admin approval." });
+        return res.status(403).json({
+          status: false,
+          message: "Your account is pending admin approval.",
+        });
       }
 
       if (user.status === "rejected") {
-        return res.status(403).json({ status: false, message: "Your account has been rejected. Contact the administrator." });
+        return res.status(403).json({
+          status: false,
+          message: "Your account has been rejected. Contact the administrator.",
+        });
       }
 
       if (!user.isActive) {
-        return res.status(403).json({ status: false, message: "Your account is inactive. Contact the administrator." });
+        return res.status(403).json({
+          status: false,
+          message: "Your account is inactive. Contact the administrator.",
+        });
       }
 
       const { createJWT } = await import("../utils/index.js");
@@ -55,13 +81,14 @@ router.post("/google", async (req, res) => {
       m.default.create({
         name,
         email: normalizedEmail,
-        password: password || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        role,
+        password:
+          password || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        role: normalizedRole,
         title,
         googleAuth: Boolean(googleAuth),
         status: "pending",
         isActive: false,
-      })
+      }),
     );
 
     newUser.password = undefined;
@@ -88,7 +115,7 @@ router.put("/approve/:id", protectRoute, isAdminRoute, updateUserApproval);
 // //   FOR ADMIN ONLY - ADMIN ROUTES
 router
   .route("/:id")
-  .put(protectRoute, isAdminRoute, activateUserProfile)
+  .put(protectRoute, activateUserProfile)
   .delete(protectRoute, isAdminRoute, deleteUserProfile);
 
 export default router;
