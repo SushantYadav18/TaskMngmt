@@ -41,7 +41,7 @@ export const taskApiSlice = apiSlice.injectEndpoints({
         body: data,
         credentials: "include",
       }),
-      invalidatesTags: ["Task"],
+      invalidatesTags: ["Task", "Project"],
     }),
 
     delegateTask: builder.mutation({
@@ -51,7 +51,7 @@ export const taskApiSlice = apiSlice.injectEndpoints({
         body: { assignee },
         credentials: "include",
       }),
-      invalidatesTags: ["Task"],
+      invalidatesTags: ["Task", "Project"],
     }),
 
     updateTask: builder.mutation({
@@ -70,7 +70,7 @@ export const taskApiSlice = apiSlice.injectEndpoints({
         method: "PUT",
         credentials: "include",
       }),
-      invalidatesTags: ["Task"],
+      invalidatesTags: ["Task", "Project"],
     }),
 
     deleteRestoreTask: builder.mutation({
@@ -80,7 +80,7 @@ export const taskApiSlice = apiSlice.injectEndpoints({
         params: { actionType },
         credentials: "include",
       }),
-      invalidatesTags: ["Task"],
+      invalidatesTags: ["Task", "Project"],
     }),
 
     duplicateTask: builder.mutation({

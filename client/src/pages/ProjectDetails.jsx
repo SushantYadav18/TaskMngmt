@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import Title from "../components/Title";
 import Button from "../components/Button";
+import ConfirmationDialog from "../components/Dialogs";
 import ProjectMemberSelector from "../components/project/ProjectMemberSelector";
 import AddTask from "../components/task/AddTask";
 import Loading from "../components/Loader";
@@ -29,6 +30,7 @@ const ProjectDetails = () => {
   const [archiveProject, { isLoading: isArchiving }] =
     useArchiveProjectMutation();
   const [openTask, setOpenTask] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [updateProject, { isLoading: isUpdating }] = useUpdateProjectMutation();
   const [editing, setEditing] = useState(false);
   const [editTeams, setEditTeams] = useState([]);
@@ -68,13 +70,13 @@ const ProjectDetails = () => {
       ? project.teams
       : teamData.teams;
 
-  const archive = async () => {
+  const deleteProject = async () => {
     try {
       await archiveProject(project._id).unwrap();
-      toast.success("Project archived successfully.");
+      toast.success("Project and its related tasks were deleted successfully.");
       navigate("/projects");
     } catch (error) {
-      toast.error(error?.data?.message || "Unable to archive project.");
+      toast.error(error?.data?.message || "Unable to delete project.");
     }
   };
 
@@ -156,12 +158,12 @@ const ProjectDetails = () => {
             onClick={() => navigate(`/projects/${project._id}/scheduling`)}
             className="bg-indigo-50 px-4 py-2 text-indigo-700"
           />
-          {canEdit && (
+          {user?.isAdmin && (
             <Button
               type="button"
-              label={isArchiving ? "Archiving..." : "Archive"}
-              onClick={archive}
-              className="bg-gray-100 px-4 py-2 text-gray-700"
+              label={isArchiving ? "Deleting..." : "Delete Project"}
+              onClick={() => setOpenDeleteDialog(true)}
+              className="bg-red-50 px-4 py-2 text-red-700"
             />
           )}
         </div>
@@ -478,6 +480,12 @@ const ProjectDetails = () => {
         )}
       </section>
       <AddTask open={openTask} setOpen={setOpenTask} project={project} />
+      <ConfirmationDialog
+        open={openDeleteDialog}
+        setOpen={setOpenDeleteDialog}
+        msg="Delete this project and its related tasks, dependencies, and notifications? This cannot be undone."
+        onClick={deleteProject}
+      />
     </div>
   );
 };

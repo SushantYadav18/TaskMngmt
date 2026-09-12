@@ -462,10 +462,8 @@ export const getTasks = async (req, res) => {
     }
 
     let queryResult = Task.find(query)
-      .populate(
-        "assignee createdBy project",
-        "name role title email name status",
-      )
+      .populate("assignee createdBy", "name role title email name status")
+      .populate("project", "name projectLeader")
       .sort({ _id: -1 });
 
     const tasks = await queryResult;
@@ -485,7 +483,8 @@ export const getTask = async (req, res) => {
     const { id } = req.params;
 
     const task = await Task.findById(id)
-      .populate("assignee createdBy project", "name title role email name")
+      .populate("assignee createdBy", "name title role email name")
+      .populate("project", "name projectLeader")
       .populate({
         path: "activities.by",
         select: "name",
@@ -873,14 +872,28 @@ export const deleteRestoreTask = async (req, res) => {
       await TaskDependency.deleteMany({
         $or: [{ predecessorTask: id }, { successorTask: id }],
       });
+      await Notice.deleteMany({ task: id });
+      await Task.updateMany({ parentTask: id }, { $set: { parentTask: null } });
+      await User.updateMany({ tasks: id }, { $pull: { tasks: id } });
       await Task.findByIdAndDelete(id);
     } else if (actionType === "deleteAll") {
+      const trashedTasks = await Task.find({ isTrashed: true }).select("_id");
+      const trashedTaskIds = trashedTasks.map((task) => task._id);
+      await Task.updateMany(
+        { parentTask: { $in: trashedTaskIds } },
+        { $set: { parentTask: null } },
+      );
       await TaskDependency.deleteMany({
         $or: [
-          { predecessorTask: { $ne: null } },
-          { successorTask: { $ne: null } },
+          { predecessorTask: { $in: trashedTaskIds } },
+          { successorTask: { $in: trashedTaskIds } },
         ],
       });
+      await Notice.deleteMany({ task: { $in: trashedTaskIds } });
+      await User.updateMany(
+        { tasks: { $in: trashedTaskIds } },
+        { $pull: { tasks: { $in: trashedTaskIds } } },
+      );
       await Task.deleteMany({ isTrashed: true });
     } else if (actionType === "restore") {
       const resp = await Task.findById(id);

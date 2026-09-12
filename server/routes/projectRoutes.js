@@ -18,6 +18,6 @@ router.get("/:id/dependency-order", protectRoute, getProjectDependencyOrder);
 router.get("/:id/cpm", protectRoute, getProjectCpm);
 router.get("/:id", protectRoute, getProject);
 router.put("/:id", protectRoute, updateProject);
-router.delete("/:id", protectRoute, archiveProject);
+router.delete("/:id", protectRoute, isAdminRoute, archiveProject);
 
 export default router;

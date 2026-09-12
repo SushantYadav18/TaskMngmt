@@ -5,6 +5,8 @@ import {
   canDelegateProjectTask,
   canViewProject,
   canWorkOnProjectTask,
+  canDeleteProject,
+  canDeleteProjectTask,
 } from "../utils/projectAccess.js";
 
 const project = {
@@ -49,6 +51,35 @@ test("only the owner or administrator can manage a project", () => {
     true,
   );
   assert.equal(canManageProject(project, { userId: "leader" }), true);
+});
+
+test("only administrators can delete projects", () => {
+  assert.equal(
+    canDeleteProject(project, { userId: "admin", isAdmin: true }),
+    true,
+  );
+  assert.equal(canDeleteProject(project, { userId: "owner" }), false);
+  assert.equal(canDeleteProject(project, { userId: "leader" }), false);
+  assert.equal(canDeleteProject(project, {}), false);
+});
+
+test("task deletion is project-leader or administrator only", () => {
+  assert.equal(
+    canDeleteProjectTask(project, { userId: "admin", isAdmin: true }),
+    true,
+  );
+  assert.equal(canDeleteProjectTask(project, { userId: "leader" }), true);
+  assert.equal(canDeleteProjectTask(project, { userId: "member" }), false);
+  assert.equal(canDeleteProjectTask(project, { userId: "assignee" }), false);
+  assert.equal(canDeleteProjectTask(project, { userId: "owner" }), false);
+  assert.equal(
+    canDeleteProjectTask(project, {
+      userId: "team-leader",
+      role: "TEAM_LEADER",
+    }),
+    false,
+  );
+  assert.equal(canDeleteProjectTask(null, { userId: "leader" }), false);
 });
 
 test("project task work is limited to explicit project members", () => {

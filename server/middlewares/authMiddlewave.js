@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import Task from "../models/task.js";
 import User from "../models/user.js";
 import Project from "../models/project.js";
+import { canDeleteProjectTask } from "../utils/projectAccess.js";
 
 const protectRoute = async (req, res, next) => {
   try {
@@ -93,4 +94,55 @@ const canAccessTask = async (req, res, next) => {
   }
 };
 
-export { canAccessTask, isAdminRoute, protectRoute };
+const canDeleteTask = async (req, res, next) => {
+  try {
+    if (!req.params.id) {
+      if (req.user?.isAdmin) return next();
+      return res.status(403).json({
+        status: false,
+        message: "Only administrators can perform bulk task deletion.",
+      });
+    }
+
+    const task = await Task.findById(req.params.id);
+    if (!task) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Task not found." });
+    }
+
+    let project = null;
+    if (task.project) {
+      project = await Project.findById(task.project).select("projectLeader");
+    }
+
+    if (!canDeleteProjectTask(project, req.user)) {
+      return res.status(403).json({
+        status: false,
+        message:
+          "Only an administrator or the project leader can delete this task.",
+      });
+    }
+
+    req.task = task;
+    next();
+  } catch (error) {
+    console.error(error);
+    return res.status(400).json({ status: false, message: "Invalid task." });
+  }
+};
+
+const canDeleteRestoreAction = async (req, res, next) => {
+  if (["delete", "deleteAll"].includes(req.query.actionType)) {
+    return canDeleteTask(req, res, next);
+  }
+  return canAccessTask(req, res, next);
+};
+
+export {
+  canAccessTask,
+  canDeleteRestoreAction,
+  canDeleteTask,
+  isAdminRoute,
+  protectRoute,
+};

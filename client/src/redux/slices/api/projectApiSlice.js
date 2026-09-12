@@ -43,7 +43,7 @@ export const projectApiSlice = apiSlice.injectEndpoints({
         body: data,
         credentials: "include",
       }),
-      invalidatesTags: ["Project"],
+      invalidatesTags: ["Project", "Task"],
     }),
     updateProject: builder.mutation({
       query: ({ id, ...data }) => ({
@@ -60,7 +60,7 @@ export const projectApiSlice = apiSlice.injectEndpoints({
         method: "DELETE",
         credentials: "include",
       }),
-      invalidatesTags: ["Project"],
+      invalidatesTags: ["Project", "Task"],
     }),
   }),
 });

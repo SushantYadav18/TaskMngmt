@@ -1,9 +1,11 @@
 import Project from "../models/project.js";
 import Task from "../models/task.js";
 import TaskDependency from "../models/taskDependency.js";
+import Notice from "../models/notification.js";
 import User from "../models/user.js";
 import {
   canManageProject,
+  canDeleteProject,
   canViewProject,
   validateProjectParticipants,
 } from "../utils/projectAccess.js";
@@ -385,16 +387,42 @@ export const archiveProject = async (req, res) => {
       return res
         .status(404)
         .json({ status: false, message: "Project not found." });
-    if (!canManageProject(project, req.user)) {
-      return res
-        .status(403)
-        .json({ status: false, message: "You cannot archive this project." });
+    if (!canDeleteProject(project, req.user)) {
+      return res.status(403).json({
+        status: false,
+        message: "Only administrators can delete projects.",
+      });
     }
-    project.status = "archived";
-    await project.save();
-    res
-      .status(200)
-      .json({ status: true, message: "Project archived successfully." });
+
+    const projectTasks = await Task.find({ project: project._id }).select(
+      "_id",
+    );
+    const taskIds = projectTasks.map((task) => task._id);
+
+    if (taskIds.length) {
+      await Task.updateMany(
+        { parentTask: { $in: taskIds } },
+        { $set: { parentTask: null } },
+      );
+      await User.updateMany(
+        { tasks: { $in: taskIds } },
+        { $pull: { tasks: { $in: taskIds } } },
+      );
+      await TaskDependency.deleteMany({
+        $or: [
+          { predecessorTask: { $in: taskIds } },
+          { successorTask: { $in: taskIds } },
+        ],
+      });
+      await Notice.deleteMany({ task: { $in: taskIds } });
+      await Task.deleteMany({ _id: { $in: taskIds } });
+    }
+
+    await project.deleteOne();
+    res.status(200).json({
+      status: true,
+      message: "Project and its related tasks were deleted successfully.",
+    });
   } catch (error) {
     res.status(400).json({ status: false, message: error.message });
   }

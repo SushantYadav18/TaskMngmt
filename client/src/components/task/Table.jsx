@@ -7,6 +7,7 @@ import {
   MdKeyboardDoubleArrowUp,
 } from "react-icons/md";
 import { toast } from "sonner";
+import { useSelector } from "react-redux";
 import { BGS, PRIOTITYSTYELS, TASK_TYPE, formatDate } from "../../utils";
 import clsx from "clsx";
 import { FaList } from "react-icons/fa";
@@ -23,6 +24,7 @@ const ICONS = {
 };
 
 const Table = ({ tasks }) => {
+  const { user } = useSelector((state) => state.auth);
   const [openDialog, setOpenDialog] = useState(false);
   const [selected, setSelected] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -123,15 +125,22 @@ const Table = ({ tasks }) => {
       </td>
 
       <td className="py-2 flex gap-2 md:gap-4 justify-end">
-        <Button
-          className="text-blue-600 hover:text-blue-500 sm:px-0 text-sm md:text-base"
-          label="Edit"
-          type="button"
-          onClick={() => {
-            setSelectedTask(task);
-            setOpenEdit(true);
-          }}
-        />
+        {Boolean(
+          user?.isAdmin ||
+          String(
+            task?.project?.projectLeader?._id || task?.project?.projectLeader,
+          ) === String(user?._id),
+        ) && (
+          <Button
+            className="text-blue-600 hover:text-blue-500 sm:px-0 text-sm md:text-base"
+            label="Edit"
+            type="button"
+            onClick={() => {
+              setSelectedTask(task);
+              setOpenEdit(true);
+            }}
+          />
+        )}
 
         <Button
           className="text-red-700 hover:text-red-500 sm:px-0 text-sm md:text-base"

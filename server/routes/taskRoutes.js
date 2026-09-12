@@ -17,6 +17,8 @@ import {
 } from "../controllers/taskController.js";
 import {
   canAccessTask,
+  canDeleteRestoreAction,
+  canDeleteTask,
   isAdminRoute,
   protectRoute,
 } from "../middlewares/authMiddlewave.js";
@@ -46,7 +48,7 @@ router.get("/:id", protectRoute, canAccessTask, getTask);
 
 router.put("/create-subtask/:id", protectRoute, canAccessTask, createSubTask);
 router.put("/update/:id", protectRoute, canAccessTask, updateTask);
-router.put("/:id", protectRoute, canAccessTask, trashTask);
+router.put("/:id", protectRoute, canDeleteTask, trashTask);
 
 router.delete(
   "/:id/dependencies/:dependencyId",
@@ -57,7 +59,7 @@ router.delete(
 router.delete(
   "/delete-restore/:id?",
   protectRoute,
-  canAccessTask,
+  canDeleteRestoreAction,
   deleteRestoreTask,
 );
 

@@ -105,6 +105,16 @@ export const canManageProject = (project, user) =>
       String(user?.userId),
   );
 
+export const canDeleteProject = (project, user) => Boolean(user?.isAdmin);
+
+export const canDeleteProjectTask = (project, user) =>
+  Boolean(
+    user?.isAdmin ||
+    (project &&
+      String(project.projectLeader?._id || project.projectLeader) ===
+        String(user?.userId)),
+  );
+
 export const canWorkOnProjectTask = (project, assignee) => {
   if (!project) return false;
   if (
