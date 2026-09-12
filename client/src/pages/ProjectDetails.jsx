@@ -11,6 +11,7 @@ import { useGetTeamsQuery } from "../redux/slices/api/userApiSlice";
 import {
   useArchiveProjectMutation,
   useGetProjectByIdQuery,
+  useGetProjectDependencyOrderQuery,
   useUpdateProjectMutation,
 } from "../redux/slices/api/projectApiSlice";
 
@@ -19,6 +20,11 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { data, isLoading, isError } = useGetProjectByIdQuery(id);
+  const {
+    data: dependencyOrderData,
+    isLoading: isDependencyOrderLoading,
+    isError: isDependencyOrderError,
+  } = useGetProjectDependencyOrderQuery(id, { skip: !id });
   const { data: teamData = { teams: [] } } = useGetTeamsQuery();
   const [archiveProject, { isLoading: isArchiving }] =
     useArchiveProjectMutation();
@@ -144,6 +150,12 @@ const ProjectDetails = () => {
               className="bg-indigo-600 px-4 py-2 text-white"
             />
           )}
+          <Button
+            type="button"
+            label="Scheduling Analysis"
+            onClick={() => navigate(`/projects/${project._id}/scheduling`)}
+            className="bg-indigo-50 px-4 py-2 text-indigo-700"
+          />
           {canEdit && (
             <Button
               type="button"
@@ -325,6 +337,58 @@ const ProjectDetails = () => {
           <span>In Progress: {data.progress?.inProgress || 0}</span>
           <span>Todo: {data.progress?.todo || 0}</span>
         </div>
+      </section>
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold">Dependency order</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Valid execution order for this project&apos;s active tasks.
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-indigo-600">
+            {dependencyOrderData?.order?.length || 0} tasks
+          </span>
+        </div>
+        {isDependencyOrderLoading && (
+          <p className="mt-4 text-sm text-gray-500">Calculating order...</p>
+        )}
+        {isDependencyOrderError && (
+          <p className="mt-4 text-sm text-red-500">
+            Dependency order is unavailable for this project.
+          </p>
+        )}
+        {!isDependencyOrderLoading &&
+          !isDependencyOrderError &&
+          dependencyOrderData?.order?.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {dependencyOrderData.order.map((item) => (
+                <div
+                  key={item.task._id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 px-4 py-3"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
+                    {item.order}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {item.task.title}
+                    </span>
+                    <span className="text-xs uppercase text-gray-500">
+                      {item.task.stage}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        {!isDependencyOrderLoading &&
+          !isDependencyOrderError &&
+          !dependencyOrderData?.order?.length && (
+            <p className="mt-4 text-sm text-gray-500">
+              No active tasks belong to this project.
+            </p>
+          )}
       </section>
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl bg-white p-6 shadow">

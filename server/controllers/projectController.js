@@ -9,6 +9,8 @@ import {
 } from "../utils/projectAccess.js";
 import { ROLES, normalizeRole } from "../utils/roles.js";
 import { calculateProjectProgress } from "../utils/scheduling.js";
+import { topologicalSortTasks } from "../utils/taskDependencies.js";
+import { calculateCriticalPath } from "../utils/cpm.js";
 
 const participantFields = "name title role email team isActive status";
 
@@ -185,6 +187,109 @@ export const getProject = async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const getProjectDependencyOrder = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id).select(
+      "_id name owner projectLeader members teams",
+    );
+    if (!project) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Project not found." });
+    }
+    if (!canViewProject(project, req.user)) {
+      return res
+        .status(403)
+        .json({ status: false, message: "You cannot access this project." });
+    }
+
+    const tasks = await Task.find({
+      project: project._id,
+      isTrashed: false,
+    })
+      .select("title stage priority date dueDate assignee project")
+      .populate("assignee", "name title role")
+      .sort({ _id: 1 });
+    const taskIds = tasks.map((task) => task._id);
+    const dependencies = taskIds.length
+      ? await TaskDependency.find({
+          predecessorTask: { $in: taskIds },
+          successorTask: { $in: taskIds },
+        }).select("predecessorTask successorTask dependencyType")
+      : [];
+    const orderedTasks = topologicalSortTasks({ tasks, dependencies });
+
+    return res.status(200).json({
+      status: true,
+      project: { _id: project._id, name: project.name },
+      order: orderedTasks.map((task, index) => ({
+        order: index + 1,
+        task: task.toObject(),
+      })),
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const getProjectCpm = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id).select(
+      "_id name owner projectLeader members teams",
+    );
+    if (!project) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Project not found." });
+    }
+    if (!canViewProject(project, req.user)) {
+      return res
+        .status(403)
+        .json({ status: false, message: "You cannot access this project." });
+    }
+
+    const tasks = await Task.find({
+      project: project._id,
+      isTrashed: false,
+    })
+      .select(
+        "title stage priority date dueDate estimatedDuration assignee project",
+      )
+      .populate("assignee", "name title role")
+      .sort({ _id: 1 });
+    const taskIds = tasks.map((task) => task._id);
+    const dependencies = taskIds.length
+      ? await TaskDependency.find({
+          predecessorTask: { $in: taskIds },
+          successorTask: { $in: taskIds },
+        }).select("predecessorTask successorTask dependencyType")
+      : [];
+    const result = calculateCriticalPath({ tasks, dependencies });
+
+    return res.status(200).json({
+      status: true,
+      project: { _id: project._id, name: project.name },
+      projectDuration: result.projectDuration,
+      tasks: result.tasks.map(({ task, ...metrics }) => ({
+        ...metrics,
+        task,
+      })),
+      criticalTasks: result.criticalTasks,
+      criticalPath: result.criticalPath,
+      criticalPaths: result.criticalPaths,
+      dependencies: dependencies.map((dependency) => ({
+        predecessorTask: String(dependency.predecessorTask),
+        successorTask: String(dependency.successorTask),
+        dependencyType: dependency.dependencyType,
+      })),
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ status: false, message: error.message });
   }
 };
 

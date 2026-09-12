@@ -19,6 +19,49 @@ export const buildDependencyGraph = (dependencies = []) => {
   return graph;
 };
 
+export const topologicalSortTasks = ({ tasks = [], dependencies = [] }) => {
+  const taskMap = new Map(tasks.map((task) => [String(task._id), task]));
+  const adjacency = new Map(
+    [...taskMap.keys()].map((taskId) => [taskId, new Set()]),
+  );
+  const indegree = new Map([...taskMap.keys()].map((taskId) => [taskId, 0]));
+
+  for (const dependency of dependencies) {
+    const predecessorId = String(dependency.predecessorTask);
+    const successorId = String(dependency.successorTask);
+
+    if (!taskMap.has(predecessorId) || !taskMap.has(successorId)) continue;
+    if (adjacency.get(predecessorId).has(successorId)) continue;
+
+    adjacency.get(predecessorId).add(successorId);
+    indegree.set(successorId, indegree.get(successorId) + 1);
+  }
+
+  const queue = tasks
+    .map((task) => String(task._id))
+    .filter((taskId) => indegree.get(taskId) === 0);
+  const orderedTaskIds = [];
+
+  while (queue.length) {
+    const taskId = queue.shift();
+    orderedTaskIds.push(taskId);
+
+    for (const successorId of adjacency.get(taskId)) {
+      const nextIndegree = indegree.get(successorId) - 1;
+      indegree.set(successorId, nextIndegree);
+      if (nextIndegree === 0) queue.push(successorId);
+    }
+  }
+
+  if (orderedTaskIds.length !== tasks.length) {
+    throw new Error(
+      "Cannot calculate dependency order because the project dependency graph contains a cycle.",
+    );
+  }
+
+  return orderedTaskIds.map((taskId) => taskMap.get(taskId));
+};
+
 const hasPath = (graph, startNode, targetNode) => {
   const queue = [String(startNode)];
   const visited = new Set();

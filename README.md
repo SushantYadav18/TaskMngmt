@@ -1,500 +1,391 @@
 # Task Management System
 
-## 1. Project Overview
+## Project Overview
 
-This repository contains a full-stack task management system for organizing users into teams and assigning work through a fixed organizational hierarchy.
+This project is a full-stack task management application centered on projects rather than only teams. The current implementation supports user authentication, project creation, project membership, task assignment, task status tracking, dependency validation, notifications, and dashboard reporting.
 
-The live application currently supports:
+The system is intentionally project-centric:
 
-- User registration, approval, login, logout, password changes, and account activation.
-- Email/password authentication with an HTTP-only JWT cookie.
-- Google sign-in integration through Firebase Authentication.
-- Five intended organizational roles: `ADMIN`, `TEAM_LEADER`, `ASSOCIATE`, `JUNIOR`, and `INTERN`.
-- Multiple teams with one Team Leader and lower-level team members.
-- Projects owned by users and connected to participating teams, project members, and tasks.
-- Role- and team-aware task creation and delegation.
-- Task stages, priorities, activities, subtasks, assets, notifications, duplication, and trash/restore operations.
-- Dashboard statistics, task board/list views, project details, task details, user/team management, and notification display.
-- Docker Compose deployment for the frontend, backend, and external MongoDB connection.
+- Team membership is still part of the user model and team management flow.
+- A project is the primary unit of work.
+- Project Leader is a project-specific authority, not a global user role.
+- A project may include members from multiple teams.
+- Task assignment and delegation are enforced against project membership and project-scoped authorization, not only team membership.
 
-The system is functional as a basic hierarchical project and task tracker. It is not yet a project scheduling or project optimization system. It now models Projects and their Tasks, but does not yet model task durations, task dependencies, resource capacity, or a dependency graph. Those missing concepts are important for the next development phase and for implementing a meaningful algorithm.
+## Tech Stack
 
-## 2. Current Architecture
+### Frontend
 
-### 2.1 Frontend
-
-The frontend is a React 18 single-page application built with Vite.
-
-Important frontend technologies:
-
-- React 18
+- React
 - Vite
-- React Router
 - Redux Toolkit
 - RTK Query
+- React Router
 - Tailwind CSS
 - React Hook Form
 - Headless UI
 - React Icons
+- Sonner notifications
 
-The frontend entry point is `client/src/main.jsx`. It provides the Redux store and `BrowserRouter`, then renders `App.jsx`.
+### Backend
 
-- `Sidebar` provides navigation.
-- `AdminRoute` protects administrator-only routes on the client.
+- Node.js
+- Express
+- MongoDB + Mongoose
+- JWT via cookie authentication
+- bcryptjs
+- CORS, cookie-parser, morgan
 
-- `client/src/pages/Login.jsx`: login, public registration, and Google sign-in.
-- `client/src/pages/dashboard.jsx`: task statistics, recent tasks, and user summary data.
-- `client/src/pages/Tasks.jsx`: task board/list views and administrator task creation entry point.
-- `client/src/pages/TaskDetails.jsx`: task detail view and activity timeline.
-- `client/src/pages/Teams.jsx`: visible team list, team creation, team member status controls, team search, and administrator drag-and-drop movement.
-- `client/src/pages/Users.jsx`: user list, administrator user creation/editing, approval, deletion, and account status operations.
-- `client/src/pages/Trash.jsx`: task restore and permanent deletion operations.
+### Deployment
 
-- `client/src/components/task/AddTask.jsx`: task creation and editing form.
-- `client/src/components/task/UserList.jsx`: frontend assignee filtering.
-- `client/src/components/task/TaskDialog.jsx`: task actions such as edit, duplicate, subtasks, and trash.
-- `client/src/components/task/Table.jsx`, `BoardView.jsx`, and `TaskCard.jsx`: task presentation.
-- `client/src/components/AddUser.jsx`: user creation and editing form.
-- `api`: RTK Query cache and API middleware.
+- Docker Compose for local containerized setup
 
-The API base query is defined in `client/src/redux/slices/apiSlice.js`. If `VITE_APP_BASE_URL` is configured, requests use that backend origin plus `/api`. If it is not configured, requests use the relative `/api` path and rely on the Vite development proxy.
+## Current Architecture
 
-### 2.2 Backend
+### Core model distinction
 
-The backend is an Express application using ECMAScript modules.
+- Team: organizational grouping for users.
+- Project: primary work container.
+- Project Leader: project-level authority stored on the Project.
+- Task: work item belonging to a project when relevant.
 
-The server entry point is `server/index.js`. It:
+### Authorization model
 
-1. Loads environment variables with `dotenv`.
-2. Mounts all routes below `/api`.
-3. Starts the HTTP server.
+The current backend uses project-aware authorization in addition to role-based checks:
 
-Backend technologies:
+- User roles still include ADMIN, TEAM_LEADER, ASSOCIATE, JUNIOR, and INTERN.
+- Project access and delegation are validated using project membership and projectLeader membership in `server/utils/projectAccess.js`.
+- Project tasks are not restricted by team-only assumptions; a user can be assigned a project task if they are a valid project member and pass the project delegation rules.
 
-- JSON Web Tokens
-- `cookie-parser`
-- `bcryptjs`
-- CORS
-- Morgan
-- Nodemon
+## Implemented Features
 
-The server uses controllers rather than a separate service layer. Business rules currently live mainly in:
+### Authentication
 
-- `server/controllers/userController.js`
-- `server/controllers/teamController.js`
-- `server/controllers/taskController.js`
-- `server/controllers/projectController.js`
-- `server/middlewares/authMiddlewave.js`
-- `server/utils/roles.js`
+- Login/logout with JWT stored in an HTTP-only cookie
+- Password change flow
+- Registration and admin approval flow
+- Google sign-in entry point using Firebase on the frontend and a backend route for account lookup/creation
+- User approval / rejection / inactive status handling
 
-### 2.3 Database
+### User management
 
-MongoDB is accessed through Mongoose. The configured connection string is `MONGODB_URI` in `server/.env`.
+- Admin approval workflow for pending users
+- User activation/deactivation
+- User profile updates
+- Pending users listing
+- User deletion by admin
 
-The current Mongoose models are:
+### Roles and teams
 
-- `User` in `server/models/user.js`
-- `Team` in `server/models/team.js`
-- `Task` in `server/models/task.js`
-- `Project` in `server/models/project.js`
-- `Notice` in `server/models/notification.js`
+- Fixed role enum: ADMIN, TEAM_LEADER, ASSOCIATE, JUNIOR, INTERN
+- Team creation and team membership management
+- Team leader assignment
+- Team member movement and validation
+- Team visibility based on authenticated user and team membership
 
-There is no separate Schedule model, Dependency model, Resource model, or Workload model.
+### Projects
 
-### 2.4 Authentication and authorization
+- Project creation with owner, projectLeader, teams, and members
+- Cross-team project membership support
+- Project update and archive flows
+- Project access rules via projectLeader and member membership
+- Project progress summary based on task stage counts
 
-Authentication uses a JWT stored in an HTTP-only cookie named `token`.
+### Project leader and project membership
 
-Login flow:
+- Project Leader is stored on the Project model, not as a global user role
+- A project leader must also be a project member
+- Project membership can include users from multiple teams
+- Project members are validated against participating teams or the project owner
 
-1. The client calls `POST /api/user/login`.
-2. The backend looks up the user by email.
-3. Passwords are compared with bcrypt.
-4. The backend creates a JWT containing the user ID.
-5. The JWT is written to an HTTP-only cookie.
-6. Protected routes run `protectRoute`.
-7. `protectRoute` verifies the JWT and loads `isAdmin`, email, role, team, and user ID into `req.user`.
+### Task management
 
-Google sign-in is handled by the frontend Firebase integration and `POST /api/user/google`. New Google accounts are created as pending accounts unless an existing active account is found.
+- Task creation with assignee, project, title, date, priority, stage, schedule fields, assets, and activities
+- Single assignee model, with task reassignment/delegation handled by project or hierarchy rules
+- Task duplication by admin
+- Task trash/restore flows
+- Task deletion and restoration operations
+- Subtasks embedded in the task document
+- Task priority values: high, medium, normal, low
+- Task stage values: todo, in progress, completed
 
-Authorization is implemented in two places:
+### Task assignment and delegation
 
-- Frontend route and control visibility improves usability.
-- Backend middleware and controllers enforce the actual security boundary.
+- Task delegation uses project-aware rules when a task belongs to a project
+- Project-level assignment checks verify the relevant member relationship and role ladder
+- Delegation logic validates source/target project membership, role compatibility, and project leadership rules
+- Non-project tasks still rely on the existing standalone hierarchy helper
 
-Important backend authorization functions:
+### Task scheduling
 
-- `protectRoute`: verifies the authentication cookie.
-- `isAdminRoute`: requires `req.user.isAdmin`.
-- `canAccessTask`: requires the requester to be the current task assignee or an administrator.
-- `canDelegateTo` in `server/utils/roles.js`: preserves the legacy standalone-task hierarchy.
-- `canDelegateProjectTask` in `server/utils/projectAccess.js`: enforces project membership and project-specific delegation.
+- Planned start date
+- Due date
+- Estimated duration in working days
+- Actual start date
+- Actual completion date
+- Overdue detection for unfinished tasks past due date
+- Project progress calculation from task stage totals
 
-### 2.5 API structure
+### Task dependencies
 
-All backend routes are mounted below `/api`:
+- Explicit `TaskDependency` model with predecessorTask, successorTask, dependencyType
+- Dependency summary as Depends On / Blocks
+- Finish-to-Start semantics only (`FS`)
+- Same-project restriction
+- Self-dependency prevention
+- Duplicate dependency prevention
+- Cycle detection for dependency chains
+- Dependency enforcement during task status transitions
 
-```text
-/api/user
-/api/team
-/api/task
-/api/project
-/api/project
+### Activities and notifications
+
+- Embedded task activity timeline with type, text, author, and timestamp
+- Automatic activities for task start and completion
+- Manual timestamped comments / updates
+- Notification model for task events and read tracking
+- Activity timeline available in task detail view
+
+### Dashboard and reporting
+
+- Dashboard statistics for task counts by status and priority
+- Recent task list and summary data
+- Project progress reporting
+
+## Project-Centric Architecture
+
+The current system is not organized around team-only task ownership.
+
+Current project architecture:
+
+- Team = organizational grouping
+- Project = execution unit
+- Project Leader = project-specific authority
+- Members may come from different teams inside the same project
+- Project tasks are validated with project membership and project leader rules
+
+This is the key distinction from older team-centric assumptions. Team membership is still relevant, but it is no longer the sole constraint for project work.
+
+## Current Task Flow
+
+The implemented lifecycle is:
+
+TODO -> IN_PROGRESS -> COMPLETED
+
+Current enforced behavior:
+
+- A task cannot move directly from TODO to COMPLETED.
+- A task cannot start if one or more prerequisite tasks are incomplete.
+- A task cannot complete if one or more prerequisite tasks are incomplete.
+- Dependencies are treated as Finish-to-Start dependencies.
+- Completed tasks are not reopened in the current flow.
+- Validation is enforced in the backend, not only in the frontend.
+
+## Task Dependencies
+
+The codebase uses an explicit dependency model separate from `parentTask`.
+
+Important differences:
+
+- `parentTask` is used for task lineage/duplication context, not dependency ordering.
+- `TaskDependency` is the actual dependency relationship.
+
+Current dependency model:
+
+- `predecessorTask`: the task that must finish first
+- `successorTask`: the task that waits on the predecessor
+- `dependencyType`: only `FS` is supported
+
+Current validation rules:
+
+- dependency must be within the same project
+- task cannot depend on itself
+- duplicate dependency is rejected
+- dependency cycle is rejected
+- a task cannot start or complete while an unfinished predecessor remains
+
+## Task Scheduling
+
+The project currently includes scheduling fields on both Task and Project models:
+
+### Task schedule fields
+
+- plannedStartDate
+- dueDate
+- estimatedDuration
+- actualStartDate
+- actualCompletionDate
+
+### Scheduling behavior implemented
+
+- planned start cannot be after due date
+- estimated duration must be a positive number
+- overdue is flagged when a task is not completed and the due date has passed
+- project progress is calculated from task stage totals
+
+CPM is implemented for project-level schedule analysis. Gantt views, resource scheduling, and automatic rescheduling are not implemented.
+
+## Activities
+
+Tasks include an embedded activity timeline.
+
+Current activity behavior:
+
+- System-generated activities are added when a task is started or completed
+- Manual comments are added through the activity form
+- Each activity includes author and timestamp
+- Activity types currently supported include: assigned, started, in progress, bug, completed, commented
+- Activity timeline is rendered in the task detail review screen
+
+## Notifications
+
+The app stores notification records in the `Notice` model.
+
+Current notification behavior:
+
+- notifications are created when tasks are assigned or duplicated
+- notification records include recipients, task reference, text, notification type, and read tracking
+- notification read state is tracked per user
+
+## Current Implementation Status
+
+| Area                   | Status   | Summary                                                                                               |
+| ---------------------- | -------- | ----------------------------------------------------------------------------------------------------- |
+| Stabilization          | COMPLETE | Core server and frontend are operating together with backend validation and current build/test checks |
+| Authentication         | COMPLETE | Login, JWT cookie auth, password change, basic approval flow, Google sign-in integration path         |
+| User Management        | COMPLETE | User create, approval, activation, profile update, deletion, pending-user flow                        |
+| Team Management        | COMPLETE | Team creation, membership, visibility, and member movement exist                                      |
+| Project Management     | COMPLETE | Projects, project leader, member validation, visibility, update, archive                              |
+| Project Membership     | COMPLETE | Multi-team membership and project-scoped validation are implemented                                   |
+| Task Management        | COMPLETE | Task create, update, assignment, trash, duplicate, restore, subtasks, assets                          |
+| Task Scheduling        | COMPLETE | Scheduling fields and overdue/project progress logic exist                                            |
+| Task Dependencies      | COMPLETE | Explicit dependency model, validation, and cycle protection exist                                     |
+| Task Status Flow       | COMPLETE | TODO -> IN_PROGRESS -> COMPLETED flow is enforced in backend validation                               |
+| Activities             | COMPLETE | Automatic and manual activities exist with timeline support                                           |
+| Notifications          | COMPLETE | Notice model and read flow exist                                                                      |
+| Dashboard              | COMPLETE | Dashboard statistics and recent task summaries exist                                                  |
+| Algorithmic Scheduling | PARTIAL  | Project dependency ordering and CPM are implemented; resource optimization remains                    |
+
+## Work Completed So Far
+
+### Project Management
+
+- Projects introduced as the primary work container
+- Project Leader added as a project-specific authority
+- Cross-team project membership supported
+- Project-centric assignment and delegation implemented on the backend
+
+### Task Scheduling
+
+- Scheduling model added to task and project records
+- Actual start and completion timestamps captured
+- Project progress calculations implemented
+- Overdue indicators introduced
+
+### Task Dependencies
+
+- Explicit dependency model added
+- Same-project validation and cycle detection implemented
+- Dependency-aware task start/complete logic added
+- Dependency summary presented as Depends On / Blocks
+- Kahn's Algorithm returns a project-scoped execution order
+- Cycles are rejected by the ordering service rather than returning a partial order
+
+### Status and activity flow
+
+- Backend task lifecycle rules were centralized and validated
+- Auto-generated task activities for start and completion were added
+- Activity timeline and task detail status controls reflect current rules
+
+## Remaining Work
+
+### High Priority
+
+- Final audit of all task mutation paths to ensure they use the same backend validation rules consistently
+- UI polish for task detail and activity interactions
+- Additional endpoint-level validation coverage for edge conditions and status transitions
+
+### Algorithm / Advanced Scheduling
+
+- Gantt-style view generation
+- Resource optimization and workload balancing
+- Gantt-style view generation
+- Automatic scheduling engine
+
+### Finalization
+
+- Expand automated regression tests around remaining task and project flows
+- Improve project and task UX consistency
+- Documentation and deployment cleanup for production readiness
+
+## Proposed Next Development Steps
+
+### Next Session
+
+Goal: continue validating the project-centric task flow after the dependency-order foundation.
+
+Key tasks:
+
+- audit remaining task update and activity endpoints for final consistency
+- confirm dependency and status handling across project views and task detail actions
+- add final test coverage for status transitions and dependency edge cases
+
+### Following Session
+
+Goal: expose the existing CPM and dependency-order results through the project UI.
+
+Key tasks:
+
+- display project duration and per-task ES, EF, LS, LF, and slack values
+- show dependency order, dependency relationships, warnings, and multiple critical paths
+- keep scheduling values sourced from the backend CPM and topological-order APIs
+
+## Algorithmic Functionality
+
+### Already Implemented
+
+- schedule validation checks
+- task dependency graph validation
+- cycle detection for dependency creation
+- project progress calculation
+- overdue detection
+- project-level adjacency-list graph construction
+- Kahn's topological sort with cycle detection
+- `GET /api/project/:id/dependency-order`
+- CPM forward/backward passes with ES, EF, LS, LF, slack, and critical paths
+- `GET /api/project/:id/cpm`
+
+### Not Yet Implemented
+
+- Gantt chart generation
+- resource optimization
+- automatic project scheduling or dependency-based sequencing algorithms
+
+The advanced scheduling items above are explicitly not in the current implementation.
+
+## How to Run
+
+### Local development
+
+1. Install dependencies in both folders:
+   - `npm install` in the root client folder
+   - `npm install` in the server folder
+2. Start the backend from the server folder.
+3. Start the frontend from the client folder.
+4. Ensure MongoDB is available and environment variables are configured for the backend.
+
+### Docker
+
+From the project root:
+
+```bash
+docker compose up --build
 ```
 
-The route registration is in `server/routes/index.js`.
+This starts the frontend and backend services defined in `docker-compose.yml`.
 
-### 2.6 Docker setup
+## Summary
 
-Docker Compose is defined in `docker-compose.yml`.
-
-Services:
-
-- `frontend`
-  - Builds from `client/Dockerfile`.
-  - Builds the Vite production bundle.
-  - Serves the bundle with Nginx.
-  - Maps host port `3000` to container port `80`.
-- `backend`
-  - Builds from `server/Dockerfile`.
-  - Runs the Express server.
-  - Maps host port `8800` to container port `8800`.
-  - Loads variables from `server/.env`.
-
-The frontend Nginx configuration uses SPA fallback routing through `try_files ... /index.html`.
-
-For local non-Docker development, Vite is configured for port `3001` and proxies `/api` to `http://localhost:8800`.
-
-## 3. Current User Roles
-
-The fixed role constants are defined in `server/utils/roles.js` and the Mongoose enum is defined in `server/models/user.js`.
-
-The intended roles are:
-
-| Role          | Current responsibility                                | Current delegation permission                                                         |
-| ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `ADMIN`       | Manages users and teams; creates main tasks.          | Main task creation targets `TEAM_LEADER`.                                             |
-| `TEAM_LEADER` | Leads one organizational team.                        | Project-specific permissions depend on the user's Project Leader/member relationship. |
-| `ASSOCIATE`   | Performs work and delegates lower-level project work. | Can delegate to `JUNIOR` or `INTERN` in the same project.                             |
-| `JUNIOR`      | Performs work and can pass work to an Intern.         | Can delegate to `INTERN` in the same project.                                         |
-| `INTERN`      | Performs assigned work.                               | Cannot delegate.                                                                      |
-
-`isAdmin` is also stored on `User` and is used by authentication and administrator middleware. The current code intends `ADMIN` to be the canonical role, but there is a current inconsistency: `server/utils/index.js` still contains the legacy default role string `"Admin"` when constructing the default administrator. Because the User schema enum expects `ADMIN`, default-admin initialization should be treated as a known compatibility issue until that helper is corrected.
-
-Role input is not intended to be free text:
-
-- The frontend uses fixed role options.
-- Registration and profile update controllers normalize and validate roles.
-- Public registration is prevented from selecting `ADMIN`.
-- The User schema validates the role enum as a final database boundary.
-
-## 4. Team Management
-
-### 4.1 Team model and membership
-
-A Team document contains `name`, one `leader` User reference, and a `members` array of User references. A User contains a `team` reference to one Team or `null`.
-
-Team membership is represented in both directions:
-
-```text
-User.team -> Team._id
-Team.members -> User._id
-Team.leader -> User._id
-```
-
-The existing organizational hierarchy remains authoritative. Teams contain one Team Leader and lower-level Associates, Juniors, and Interns.
-
-Projects add a separate project-specific `projectLeader` relationship. Project Leader is not a global User role. A user can be a Team Leader for one team and Project Leader for a different project, while a non-Team-Leader user may also be Project Leader.
-
-### 4.2 Team visibility
-
-Backend visibility is determined from the authenticated user and database relationships:
-
-- `ADMIN`: sees all teams and approved members.
-- `TEAM_LEADER`: sees only the team where the authenticated user is both `User.team` and `Team.leader`.
-- `ASSOCIATE`, `JUNIOR`, and `INTERN`: see only their own validated team.
-- Users without a valid team relationship receive no team data.
-
-The Teams page displays teams as visible sections, supports team-name search, separates the Team Leader from normal members, and provides administrator drag-and-drop movement for eligible members.
-
-### 4.3 Team administration and movement
-
-Administrators can create teams, update membership, activate/deactivate users, and move Associates, Juniors, and Interns between teams. Team Leaders cannot be moved or reassigned through this functionality.
-
-The movement endpoint updates the User's `team` reference and both old and destination Team member arrays. Team Leaders and administrators are rejected as movement targets.
-
-Administrators also have a confirmed delete action. Deletion is blocked if:
-
-- The team still has Associates, Juniors, or Interns.
-- Any Project references the team.
-
-If only the leader remains and no Project references the team, the leader's `User.team` reference is cleared before the Team document is deleted. This avoids orphaned membership references.
-
-### 4.4 Team Leader capabilities
-
-A Team Leader can view their own team and activate/deactivate eligible members of that team. They cannot manage another team, manage themselves, manage another Team Leader, move members, or change leadership.
-
-### 4.5 Associate, Junior, and Intern capabilities
-
-These roles can view only their own validated team and its members. They cannot activate/deactivate users, move users, modify membership, or modify Team Leader information.
-
-### 4.6 Activation and deactivation
-
-`PUT /api/user/:id` accepts an activation value through `isActive` or the legacy `isAction` request field. Administrators can manage any user. Team Leaders can manage eligible non-leader members in their own team. Associates, Juniors, and Interns are rejected by the backend.
-
-## 5. Current Task Management
-
-### 5.1 Task creation
-
-Task creation is available through `POST /api/task/create` and is protected by `protectRoute`. Standalone tasks remain administrator-created; project tasks may be created by an administrator or the configured Project Leader.
-
-The administrator supplies:
-
-- `title`
-- `assignee`
-- `stage`
-- `date`
-- `priority`
-- `assets`
-
-The backend loads the creator and target User and applies `canDelegateTo`. For the administrator path, the target must be a `TEAM_LEADER` with a team. A main task cannot be created directly for an Associate, Junior, or Intern.
-
-The task stores:
-
-- `createdBy`: User reference for the creator.
-- `assignee`: one current responsible User reference.
-- `project`: optional Project reference. Project tasks use project-centric authorization.
-- `parentTask`: optional Task reference.
-- `title`, `date`, `priority`, `stage`, `assets`, and activity history.
-
-A Notice is created for the initial assignee.
-
-### 5.2 Task assignment and delegation
-
-The live task model uses one current `assignee`, not a list of arbitrary assigned team members.
-
-For project tasks, the normal flow is:
-
-```text
-ADMIN
-  -> creates a main task for TEAM_LEADER
-  -> PROJECT LEADER delegates to project members from any organizational team
-  -> ASSOCIATE delegates to JUNIOR or INTERN in the same project
-  -> JUNIOR delegates to INTERN in the same project
-  -> INTERN executes the assigned work
-```
-
-Delegation uses `POST /api/task/delegate/:id`.
-
-For a project task, the backend checks:
-
-- The requester is authenticated.
-- The requester can access the task.
-- The target User exists.
-- The role transition is valid.
-- The task belongs to the selected Project.
-- The source and target are members of that Project.
-- The source is the Project Leader, or has `ASSOCIATE`/`JUNIOR` authority for the requested lower-level target.
-- Organizational team equality is not required.
-
-The project-specific hierarchy is:
-
-```text
-ADMIN -> PROJECT LEADER -> ASSOCIATE -> JUNIOR -> INTERN
-```
-
-The Project Leader relationship is stored on the Project and is not added to the global User role enum. Admin project creation assigns the Project Leader. Project Leaders can create or delegate project tasks to appropriate project members across teams. Associate and Junior delegation is also project-scoped. Interns cannot delegate.
-
-Standalone tasks without a Project continue to use the existing team-based `canDelegateTo` behavior for backward compatibility.
-
-Successful delegation:
-
-- Replaces `Task.assignee`.
-- Sets `parentTask` to the task ID when it is not already set.
-- Appends an `assigned` activity.
-- Creates a Notice for the new assignee.
-
-The frontend `UserList` filters project members for project tasks, but the backend independently enforces the same rules.
-
-### 5.3 Task access
-
-`canAccessTask` grants access to:
-
-- The administrator, or
-- The User whose ID equals `Task.assignee`.
-
-For non-admin users, task list queries also filter by `assignee`.
-
-This means the current system does not automatically give a Team Leader access to every task delegated within their team. Access is based on the current assignee and administrator status.
-
-### 5.4 Task stages and priorities
-
-Task stages are constrained by the Task schema:
-
-- `todo`
-- `in progress`
-- `completed`
-
-Task priorities are constrained by the Task schema:
-
-- `high`
-- `medium`
-- `normal`
-- `low`
-
-Posting activity can update the stage:
-
-- `completed` sets the task to `completed`.
-- `in progress`, `started`, and `bug` set the task to `in progress`.
-- `assigned` sets the task to `todo`.
-
-### 5.5 Activities
-
-A Task embeds an `activities` array. Each activity contains:
-
-- `type`: one of `assigned`, `started`, `in progress`, `bug`, `completed`, or `commented`.
-- `activity`: text content.
-- `date`.
-- `by`: User reference.
-
-The task detail page displays the activity timeline and lets the current assignee or administrator post activity through `POST /api/task/activity/:id`.
-
-### 5.6 Subtasks
-
-A Task embeds a `subTasks` array. Each subtask currently contains:
-
-- `title`
-- `date`
-- `tag`
-
-Subtasks are added through `PUT /api/task/create-subtask/:id`. They are embedded records, not independent Task documents and cannot be independently assigned, scheduled, or linked by dependencies.
-
-### 5.7 Assets
-
-Tasks contain an `assets` array of strings. The current task form records selected file names. The repository includes Cloudinary-related packages, but the current task form does not implement a complete server-side asset upload workflow.
-
-### 5.8 Notifications
-
-Notifications are stored in the `Notice` model.
-
-A Notice contains:
-
-- `team`: an array of User references receiving the notice. Despite the field name, it is currently used as a recipient list.
-- `text`
-- `task`: Task reference.
-- `notiType`: `alert` or `message`.
-- `isRead`: array of User references who have read it.
-
-Notices are created when a task is initially assigned, duplicated, or delegated. Users retrieve notifications with `GET /api/user/notifications` and mark one or all as read with `PUT /api/user/read-noti`.
-
-### 5.9 Editing tasks
-
-`PUT /api/task/update/:id` allows the current assignee or an administrator to update:
-
-- Title
-- Date
-- Stage
-- Priority
-- Assets
-
-The current update controller does not change the assignee. Delegation is handled separately through the delegation endpoint.
-
-### 5.10 Duplication
-
-`POST /api/task/duplicate/:id` is administrator-only.
-
-The duplicate receives:
-
-- A `- Duplicate` title suffix.
-- The requesting administrator as `createdBy`.
-- The original task's assignee.
-- The original task as `parentTask`.
-- Copied subtasks, assets, priority, stage, and date.
-
-A notification is sent to the duplicate's assignee.
-
-### 5.11 Trash, restore, and deletion
-
-`PUT /api/task/:id` moves an individual task to trash.
-
-`DELETE /api/task/delete-restore/:id?` supports:
-
-- `delete`: permanently delete one task.
-- `restore`: restore one task.
-- `deleteAll`: permanently delete all trashed tasks.
-- `restoreAll`: restore all trashed tasks.
-
-The route uses `canAccessTask`, so administrators can perform bulk actions while normal users are limited to tasks assigned to them.
-
-## 6. Current Data Model
-
-### 6.1 User
-
-`server/models/user.js` defines User fields including:
-
-- `name`
-- `title`
-- `role`
-- `team`
-- `email`
-- `password`
-- `isAdmin`
-- `tasks`
-- `isActive`
-- `status`
-- `googleAuth`
-- timestamps
-
-Relationships:
-
-- `team` references one Team.
-- `tasks` is an array of Task references, although current task controllers primarily use `Task.assignee` and do not maintain this array as the main assignment mechanism.
-
-### 6.2 Team
-
-`server/models/team.js` defines:
-
-- `name`
-- `leader`: one User reference.
-- `members`: array of User references.
-- timestamps
-
-Team membership is represented redundantly in both directions:
-
-```text
-User.team -> Team._id
-Team.members -> User._id
-Team.leader -> User._id
-```
-
-The team controllers update these relationships for normal member movement and membership updates. There is no separate TeamMember model.
-
-### 6.3 Task
-
-`server/models/task.js` defines:
-
-- `title`
-- `createdBy`: User reference.
-- `assignee`: User reference.
-- `project`: optional Project reference.
-- `parentTask`: optional self-reference to another Task.
-- `plannedStartDate`: optional planned start date.
-- `dueDate`: optional due date.
-- `estimatedDuration`: optional positive number of working days.
-- `actualStartDate`: optional actual start date.
-- `actualCompletionDate`: optional actual completion date.
-- `date`
-- `priority`
-- `stage`
-- `activities`: embedded activity records.
-- `subTasks`: embedded subtask records.
-- `assets`: string array.
-- `isTrashed`
-- timestamps
-
-Scheduling fields are optional for backward compatibility. `estimatedDuration` is measured in working days for this session; no weekend, holiday, timezone, or working-hours calendar is applied. Existing tasks may have all scheduling fields unset.
-
-### 6.4 Project
+The current codebase is a functional project-centric task management system with role-based user management, team structure, project membership, task lifecycle enforcement, dependency validation, scheduling metadata, activity tracking, and dashboard reporting. It is not yet an algorithmic scheduling or planning engine, and the project is intentionally positioned before that advanced phase.
 
 `server/models/project.js` defines:
 
@@ -585,48 +476,29 @@ Task dates remain independent from Project planned dates; changing a task date d
 
 ### 7.5 Task effort and advanced scheduling
 
-**Status: completely missing.**
+**Status: basic duration data implemented; advanced scheduling is missing.**
 
-The Task model still has no:
-
-- Estimated duration
-- Actual duration
-- Estimated effort
-- Remaining effort
-- Story points
-- Complexity value
-- Work hours
-- Calendar or working-time assumptions
-
-The current `date` field cannot answer how long a task is expected to take.
+Tasks support estimated duration in working days, along with planned and actual dates. The system does not yet model estimated effort, remaining effort, story points, resource capacity, or working-time calendars.
 
 ### 7.6 Task dependencies
 
-**Status: completely missing.**
+**Status: implemented for Finish-to-Start dependencies.**
 
-There is no dependency collection or dependency field. `parentTask` exists, but it represents a duplication/delegation lineage and is not a predecessor relationship.
-
-The system cannot currently represent:
-
-- Finish-to-start dependencies
-- Start-to-start dependencies
-- Finish-to-finish dependencies
-- Lag or lead time
-- Task predecessor/successor lists
-- Dependency validation
-- Circular dependency detection
+`TaskDependency` stores predecessor-to-successor edges. The backend validates same-project membership, rejects self and duplicate dependencies, prevents cycles during creation, and blocks task status changes while prerequisites remain incomplete.
 
 ### 7.7 Graph representation
 
-**Status: completely missing.**
+**Status: implemented for project-level ordering.**
 
-No directed task graph is stored or generated. There is no graph traversal, topological ordering, cycle detection, adjacency list, or dependency edge model.
+The dependency-order service builds an in-memory adjacency list from the selected project's non-trashed tasks and dependency records. Kahn's Algorithm calculates indegrees, processes zero-indegree tasks, and returns a valid task order. Tasks and dependencies outside the selected project are ignored.
+
+If the processed task count is less than the project task count, the service reports a cycle instead of returning a misleading partial order.
 
 ### 7.8 Project-level progress
 
-**Status: completely missing.**
+**Status: implemented for stage-based progress.**
 
-The dashboard counts tasks by stage and priority, but it does not calculate progress for a project because no project exists. It also does not calculate weighted progress based on effort or duration.
+The dashboard and project details calculate progress from non-trashed project tasks by stage. Weighted progress based on effort or duration is not implemented.
 
 ### 7.9 Resources and workload
 
@@ -655,15 +527,15 @@ It does not know:
 
 ### 7.10 Scheduling information
 
-**Status: completely missing.**
+**Status: basic task scheduling data implemented; advanced scheduling is missing.**
 
-There is no scheduler, calendar, working-day model, time zone planning, capacity calculation, baseline schedule, or forecast completion date.
+The app stores planned dates, due dates, estimated working-day duration, and actual task dates. It does not yet provide a scheduler, calendar, time-zone planning, capacity calculation, baseline schedule, or forecast completion date.
 
 ### 7.11 Algorithm input data
 
-**Status: insufficient.**
+**Status: sufficient for dependency ordering; insufficient for advanced scheduling.**
 
-The system has enough data for role hierarchy and access-control algorithms, but not enough domain data for meaningful project scheduling or optimization. The current task date, stage, priority, assignee, and embedded subtasks are not sufficient to calculate a critical path or resource-constrained schedule.
+The system has tasks, estimated duration, project-scoped dependency edges, and enough data for topological ordering. It still lacks the calendars, capacity, effort, and scheduling assumptions needed for a critical path or resource-constrained schedule.
 
 ### 7.12 Legacy and consistency issues
 
@@ -818,7 +690,7 @@ These algorithms should only be considered after the missing domain concepts are
 
 **Required data:** Project, tasks, task durations, dependency edges, and project calendar assumptions.
 
-**Fit:** Natural fit after dependencies and durations exist. It would be artificial in the current system because there is no dependency graph or task duration.
+**Fit:** Implemented in `server/utils/cpm.js` using the project dependency graph and estimated task durations. It deliberately does not calculate resources, calendars, or automatic rescheduling.
 
 ### 11.2 Topological Sort / Kahn's Algorithm
 
@@ -826,7 +698,7 @@ These algorithms should only be considered after the missing domain concepts are
 
 **Required data:** Tasks and directed predecessor/successor edges.
 
-**Fit:** Natural foundational algorithm for dependency validation and graph-based scheduling. It is not useful with the current absence of dependency edges.
+**Fit:** Implemented as the project-level dependency-order foundation. It does not calculate dates, durations, critical paths, or resource assignments.
 
 ### 11.3 Earliest/Latest Schedule and Slack Calculation
 
@@ -878,7 +750,7 @@ These algorithms should only be considered after the missing domain concepts are
 
 ## 12. Final Recommendation
 
-Do not implement the algorithm requirement immediately.
+The dependency-order and CPM algorithms are now implemented. Continue with advanced scheduling only after validating this foundation.
 
 First build a realistic project and scheduling foundation:
 
@@ -889,8 +761,8 @@ First build a realistic project and scheduling foundation:
 5. Add project progress and schedule calculations.
 6. Add basic user capacity and availability only if resource-aware scheduling is required.
 7. Build a dependency graph from validated project data.
-8. Implement Critical Path Method and topological sorting first.
-9. Expose the calculated schedule, critical path, slack, and dependency warnings in the existing task/project UI.
+8. Extend the CPM result into a user-facing schedule analysis view.
+9. Add resource and calendar assumptions only when the product requires advanced scheduling.
 
 This path improves the application itself and gives the algorithm a real domain problem to solve. It avoids attaching an unrelated algorithm to the current role-and-task workflow merely to satisfy a requirement.
 
@@ -1005,13 +877,15 @@ All endpoints below are prefixed with `/api`.
 
 ### Project routes
 
-| Method   | Endpoint       | Access                 | Current purpose                                            |
-| -------- | -------------- | ---------------------- | ---------------------------------------------------------- |
-| `GET`    | `/project`     | Authenticated          | List projects visible to the current user.                 |
-| `POST`   | `/project`     | Admin                  | Create a project owned by the authenticated administrator. |
-| `GET`    | `/project/:id` | Authorized user        | Return project details and its non-trashed tasks.          |
-| `PUT`    | `/project/:id` | Project owner or Admin | Update project metadata and participants.                  |
-| `DELETE` | `/project/:id` | Project owner or Admin | Archive the project by setting status to `archived`.       |
+| Method   | Endpoint                        | Access                 | Current purpose                                                      |
+| -------- | ------------------------------- | ---------------------- | -------------------------------------------------------------------- |
+| `GET`    | `/project`                      | Authenticated          | List projects visible to the current user.                           |
+| `POST`   | `/project`                      | Admin                  | Create a project owned by the authenticated administrator.           |
+| `GET`    | `/project/:id`                  | Authorized user        | Return project details and its non-trashed tasks.                    |
+| `GET`    | `/project/:id/dependency-order` | Authorized user        | Return a Kahn topological order for the project's non-trashed tasks. |
+| `GET`    | `/project/:id/cpm`              | Authorized user        | Return ES, EF, LS, LF, slack, project duration, and critical paths.  |
+| `PUT`    | `/project/:id`                  | Project owner or Admin | Update project metadata and participants.                            |
+| `DELETE` | `/project/:id`                  | Project owner or Admin | Archive the project by setting status to `archived`.                 |
 
 ### Task routes
 

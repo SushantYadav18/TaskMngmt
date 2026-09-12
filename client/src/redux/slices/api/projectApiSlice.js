@@ -20,6 +20,22 @@ export const projectApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["Project", "Task"],
     }),
+    getProjectDependencyOrder: builder.query({
+      query: (id) => ({
+        url: `${PROJECT_URL}/${id}/dependency-order`,
+        method: "GET",
+        credentials: "include",
+      }),
+      providesTags: ["Project", "Task"],
+    }),
+    getProjectCpm: builder.query({
+      query: (id) => ({
+        url: `${PROJECT_URL}/${id}/cpm`,
+        method: "GET",
+        credentials: "include",
+      }),
+      providesTags: ["Project", "Task"],
+    }),
     createProject: builder.mutation({
       query: (data) => ({
         url: PROJECT_URL,
@@ -52,6 +68,8 @@ export const projectApiSlice = apiSlice.injectEndpoints({
 export const {
   useGetProjectsQuery,
   useGetProjectByIdQuery,
+  useGetProjectDependencyOrderQuery,
+  useGetProjectCpmQuery,
   useCreateProjectMutation,
   useUpdateProjectMutation,
   useArchiveProjectMutation,

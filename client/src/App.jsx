@@ -16,6 +16,7 @@ import Dashboard from "./pages/dashboard";
 import Teams from "./pages/Teams";
 import Projects from "./pages/Projects";
 import ProjectDetails from "./pages/ProjectDetails";
+import SchedulingAnalysis from "./pages/SchedulingAnalysis";
 import { setOpenSidebar } from "./redux/slices/authSlice";
 
 function AdminRoute({ children }) {
@@ -125,6 +126,10 @@ function App() {
           <Route path="/team" element={<Teams />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
+          <Route
+            path="/projects/:id/scheduling"
+            element={<SchedulingAnalysis />}
+          />
           <Route
             path="/teams"
             element={
