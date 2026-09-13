@@ -74,7 +74,7 @@ const Login = () => {
             name: googleUser.displayName || "Google User",
             email: googleUser.email,
             title: "Team Member",
-            role: "Member",
+            role: "ASSOCIATE",
             googleAuth: true,
           }),
         },
@@ -262,21 +262,30 @@ const Login = () => {
                 }
               />
 
-              <Textbox
-                placeholder="Role"
-                type="text"
-                name="role"
-                label="Role"
-                className="w-full rounded-2xl"
-                register={registerForm.register("role", {
-                  required: "Role is required!",
-                })}
-                error={
-                  registerForm.formState.errors.role
-                    ? registerForm.formState.errors.role.message
-                    : ""
-                }
-              />
+              <div>
+                <label className="text-gray-700">Role</label>
+                <select
+                  className="w-full rounded-2xl border border-gray-200 px-3 py-3"
+                  defaultValue="ASSOCIATE"
+                  {...registerForm.register("role", {
+                    required: "Role is required!",
+                  })}
+                >
+                  <option value="">Select role</option>
+                  {["TEAM_LEADER", "ASSOCIATE", "JUNIOR", "INTERN"].map(
+                    (role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ),
+                  )}
+                </select>
+                {registerForm.formState.errors.role && (
+                  <span className="text-sm text-red-500">
+                    {registerForm.formState.errors.role.message}
+                  </span>
+                )}
+              </div>
 
               <Textbox
                 placeholder="email@example.com"

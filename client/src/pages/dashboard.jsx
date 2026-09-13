@@ -5,7 +5,7 @@ import {
   MdKeyboardArrowUp,
   MdKeyboardDoubleArrowUp,
 } from "react-icons/md";
-import { LuClipboardEdit } from "react-icons/lu";
+import { MdOutlineAssignment } from "react-icons/md";
 import { FaNewspaper, FaUsers } from "react-icons/fa";
 import { FaArrowsToDot } from "react-icons/fa6";
 import moment from "moment";
@@ -28,7 +28,7 @@ const TaskTable = ({ tasks }) => {
       <tr className="text-left text-xs uppercase tracking-[0.14em] text-gray-500">
         <th className="py-4 font-semibold">Task Title</th>
         <th className="py-4 font-semibold">Priority</th>
-        <th className="py-4 font-semibold">Team</th>
+        <th className="py-4 font-semibold">Assignee</th>
         <th className="py-4 font-semibold hidden md:table-cell">Created At</th>
       </tr>
     </thead>
@@ -56,17 +56,18 @@ const TaskTable = ({ tasks }) => {
 
       <td className="py-4 pr-4">
         <div className="flex">
-          {task.team.map((m, index) => (
-            <div
-              key={index}
-              className={clsx(
-                "w-8 h-8 rounded-full text-white flex items-center justify-center text-sm -mr-1 ring-2 ring-white",
-                BGS[index % BGS.length],
-              )}
-            >
-              <UserInfo user={m} />
-            </div>
-          ))}
+          {task.assignee &&
+            [task.assignee].map((m, index) => (
+              <div
+                key={index}
+                className={clsx(
+                  "w-8 h-8 rounded-full text-white flex items-center justify-center text-sm -mr-1 ring-2 ring-white",
+                  BGS[index % BGS.length],
+                )}
+              >
+                <UserInfo user={m} />
+              </div>
+            ))}
         </div>
       </td>
       <td className="py-4 hidden md:table-cell">
@@ -191,7 +192,7 @@ const Dashboard = () => {
       _id: "3",
       label: "In progress",
       total: totals["in progress"] || 0,
-      icon: <LuClipboardEdit />,
+      icon: <MdOutlineAssignment />,
       bg: "bg-amber-500",
       hint: "Currently moving",
     },

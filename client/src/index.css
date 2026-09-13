@@ -85,6 +85,18 @@ body {
   color: var(--muted) !important;
 }
 
+.sidebar-link.bg-indigo-600,
+.sidebar-link.bg-indigo-600 span,
+.sidebar-link.bg-indigo-600 svg {
+  color: #ffffff !important;
+}
+
+.dark .sidebar-link.bg-indigo-600,
+.dark .sidebar-link.bg-indigo-600 span,
+.dark .sidebar-link.bg-indigo-600 svg {
+  color: #ffffff !important;
+}
+
 .border-gray-200,
 .border-gray-300 {
   border-color: var(--line) !important;

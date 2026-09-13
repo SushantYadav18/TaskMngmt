@@ -1,18 +1,28 @@
 import { response } from "express";
 import User from "../models/user.js";
+import Team from "../models/team.js";
 import { createJWT } from "../utils/index.js";
 import Notice from "../models/notification.js";
+import { ROLE_VALUES, ROLES, normalizeRole } from "../utils/roles.js";
 
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role, title } = req.body;
+    const normalizedRole = normalizeRole(role);
     const isAdminCreated = req.user?.isAdmin === true;
 
-    if (!name || !email || !password || !role || !title) {
+    if (!name || !email || !password || !normalizedRole || !title) {
       return res.status(400).json({
         status: false,
         message: "Name, email, password, role and title are required.",
       });
+    }
+
+    if (
+      !ROLE_VALUES.includes(normalizedRole) ||
+      (!isAdminCreated && normalizedRole === "ADMIN")
+    ) {
+      return res.status(400).json({ status: false, message: "Invalid role." });
     }
 
     const userExist = await User.findOne({ email: email.toLowerCase() });
@@ -28,7 +38,7 @@ export const registerUser = async (req, res) => {
       name,
       email: email.toLowerCase(),
       password,
-      role,
+      role: normalizedRole,
       title,
       status: isAdminCreated ? "approved" : "pending",
       isActive: isAdminCreated,
@@ -91,7 +101,8 @@ export const loginUser = async (req, res) => {
     if (!user.password) {
       return res.status(401).json({
         status: false,
-        message: "This account uses Google sign-in. Please continue with Google.",
+        message:
+          "This account uses Google sign-in. Please continue with Google.",
       });
     }
 
@@ -130,8 +141,31 @@ export const logoutUser = async (req, res) => {
 
 export const getTeamList = async (req, res) => {
   try {
-    const users = await User.find({ status: "approved" })
-      .select("name title role email isActive status isAdmin createdAt")
+    const requester = await User.findById(req.user.userId).select(
+      "isAdmin role team",
+    );
+    let query = { status: "approved" };
+
+    if (!requester?.isAdmin) {
+      if (!requester?.team) {
+        return res.status(200).json([]);
+      }
+
+      const teamQuery =
+        normalizeRole(requester.role) === ROLES.TEAM_LEADER
+          ? { _id: requester.team, leader: requester._id }
+          : { _id: requester.team, members: requester._id };
+      const validTeam = await Team.exists(teamQuery);
+
+      if (!validTeam) {
+        return res.status(200).json([]);
+      }
+
+      query.team = validTeam._id;
+    }
+
+    const users = await User.find(query)
+      .select("name title role email team isActive status isAdmin createdAt")
       .sort({ createdAt: -1 });
 
     res.status(200).json(users);
@@ -177,15 +211,22 @@ export const updateUserProfile = async (req, res) => {
 
     const targetUserId = _id || id || userId;
 
-    const resolvedId =
-      isAdmin && targetUserId ? targetUserId : userId;
+    const resolvedId = isAdmin && targetUserId ? targetUserId : userId;
 
     const user = await User.findById(resolvedId);
 
     if (user) {
       user.name = req.body.name || user.name;
       user.title = req.body.title || user.title;
-      user.role = req.body.role || user.role;
+      if (isAdmin && req.body.role) {
+        const normalizedRole = normalizeRole(req.body.role);
+        if (!ROLE_VALUES.includes(normalizedRole)) {
+          return res
+            .status(400)
+            .json({ status: false, message: "Invalid role." });
+        }
+        user.role = normalizedRole;
+      }
 
       const updatedUser = await user.save();
 
@@ -215,13 +256,13 @@ export const markNotificationRead = async (req, res) => {
       await Notice.updateMany(
         { team: userId, isRead: { $nin: [userId] } },
         { $push: { isRead: userId } },
-        { new: true }
+        { new: true },
       );
     } else {
       await Notice.findOneAndUpdate(
         { _id: id, isRead: { $nin: [userId] } },
         { $push: { isRead: userId } },
-        { new: true }
+        { new: true },
       );
     }
 
@@ -265,24 +306,44 @@ export const activateUserProfile = async (req, res) => {
 
     const user = await User.findById(id);
 
-    if (user) {
-      user.isActive = Boolean(nextIsActive);
-
-      if (user.isActive && user.status === "pending") {
-        user.status = "approved";
-      }
-
-      await user.save();
-
-      res.status(201).json({
-        status: true,
-        message: `User account has been ${
-          user?.isActive ? "activated" : "disabled"
-        }`,
-      });
-    } else {
-      res.status(404).json({ status: false, message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ status: false, message: "User not found" });
     }
+
+    const requester = await User.findById(req.user.userId).select(
+      "isAdmin role team",
+    );
+    const requesterRole = normalizeRole(requester?.role);
+    const isTeamLeader = requesterRole === ROLES.TEAM_LEADER;
+
+    if (
+      !requester?.isAdmin &&
+      (!isTeamLeader ||
+        !requester.team ||
+        String(user.team) !== String(requester.team) ||
+        String(user._id) === String(requester._id) ||
+        normalizeRole(user.role) === ROLES.TEAM_LEADER)
+    ) {
+      return res.status(403).json({
+        status: false,
+        message: "You are not allowed to change this user's status.",
+      });
+    }
+
+    user.isActive = Boolean(nextIsActive);
+
+    if (user.isActive && user.status === "pending") {
+      user.status = "approved";
+    }
+
+    await user.save();
+
+    res.status(201).json({
+      status: true,
+      message: `User account has been ${
+        user?.isActive ? "activated" : "disabled"
+      }`,
+    });
   } catch (error) {
     console.log(error);
     return res.status(400).json({ status: false, message: error.message });

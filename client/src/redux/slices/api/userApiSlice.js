@@ -30,6 +30,54 @@ export const userApiSlice = apiSlice.injectEndpoints({
       }),
     }),
 
+    getTeams: builder.query({
+      query: () => ({
+        url: "/team",
+        method: "GET",
+        credentials: "include",
+      }),
+      providesTags: ["Team"],
+    }),
+
+    createTeam: builder.mutation({
+      query: (data) => ({
+        url: "/team",
+        method: "POST",
+        body: data,
+        credentials: "include",
+      }),
+      invalidatesTags: ["Team", "User"],
+    }),
+
+    updateTeamMembers: builder.mutation({
+      query: ({ id, memberIds }) => ({
+        url: `/team/${id}/members`,
+        method: "PUT",
+        body: { memberIds },
+        credentials: "include",
+      }),
+      invalidatesTags: ["Team", "User"],
+    }),
+
+    moveTeamMember: builder.mutation({
+      query: ({ userId, destinationTeamId }) => ({
+        url: "/team/move-member",
+        method: "PUT",
+        body: { userId, destinationTeamId },
+        credentials: "include",
+      }),
+      invalidatesTags: ["Team", "User"],
+    }),
+
+    deleteTeam: builder.mutation({
+      query: (id) => ({
+        url: `/team/${id}`,
+        method: "DELETE",
+        credentials: "include",
+      }),
+      invalidatesTags: ["Team", "User", "Project"],
+    }),
+
     getPendingUsers: builder.query({
       query: () => ({
         url: `${USER_URL}/pending-users`,
@@ -95,6 +143,11 @@ export const {
   useCreateUserMutation,
   useUpdateUserMutation,
   useGetTeamListQuery,
+  useGetTeamsQuery,
+  useCreateTeamMutation,
+  useUpdateTeamMembersMutation,
+  useMoveTeamMemberMutation,
+  useDeleteTeamMutation,
   useGetPendingUsersQuery,
   useApproveUserMutation,
   useDeleteUserMutation,

@@ -6,7 +6,7 @@ import {
   MdSettings,
   MdTaskAlt,
 } from "react-icons/md";
-import { FaTasks, FaTrashAlt, FaUsers } from "react-icons/fa";
+import { FaTasks, FaTrashAlt, FaUsers, FaFolderOpen } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
 import { setOpenSidebar } from "../redux/slices/authSlice";
@@ -44,6 +44,11 @@ const linkData = [
     icon: <FaUsers />,
   },
   {
+    label: "Projects",
+    link: "projects",
+    icon: <FaFolderOpen />,
+  },
+  {
     label: "Pending",
     link: "pending-users",
     icon: <MdOutlinePendingActions />,
@@ -65,7 +70,9 @@ const Sidebar = () => {
 
   const sidebarLinks = user?.isAdmin
     ? linkData
-    : linkData.filter((link) => link.link !== "pending-users");
+    : linkData.filter(
+        (link) => !link.adminOnly && link.link !== "pending-users",
+      );
 
   const closeSidebar = () => {
     dispatch(setOpenSidebar(false));
@@ -76,7 +83,7 @@ const Sidebar = () => {
       to={el.link}
       onClick={closeSidebar}
       className={clsx(
-        "w-full flex gap-3 px-3.5 py-3 rounded-2xl items-center text-[15px] font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all",
+        "sidebar-link w-full flex gap-3 px-3.5 py-3 rounded-2xl items-center text-[15px] font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all",
         path === el.link.split("/")[0] &&
           "bg-indigo-600 text-white shadow-glow hover:bg-indigo-600 hover:text-white",
       )}
@@ -96,9 +103,7 @@ const Sidebar = () => {
           <span className="block text-xl font-extrabold text-gray-900 tracking-tight">
             TaskMe
           </span>
-          <span className="text-xs font-medium text-gray-500">
-            Workspace
-          </span>
+          <span className="text-xs font-medium text-gray-500">Workspace</span>
         </div>
       </div>
 

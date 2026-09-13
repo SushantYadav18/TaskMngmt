@@ -1,11 +1,13 @@
 import bcrypt from "bcryptjs";
 import mongoose, { Schema } from "mongoose";
+import { ROLE_VALUES } from "../utils/roles.js";
 
 const userSchema = new Schema(
   {
     name: { type: String, required: true },
     title: { type: String, required: true },
-    role: { type: String, required: true },
+    role: { type: String, required: true, enum: ROLE_VALUES },
+    team: { type: Schema.Types.ObjectId, ref: "Team", default: null },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     isAdmin: { type: Boolean, required: true, default: false },
@@ -18,7 +20,7 @@ const userSchema = new Schema(
     },
     googleAuth: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 userSchema.pre("save", async function (next) {

@@ -13,7 +13,14 @@ import {
 export const Chart = ({ data = [] }) => {
   return (
     <ResponsiveContainer width={"100%"} height={340}>
-      <BarChart width={150} height={40} data={data} barSize={28}>
+      <BarChart
+        width={150}
+        height={40}
+        data={data}
+        barSize={34}
+        maxBarSize={42}
+        barCategoryGap="18%"
+      >
         <XAxis dataKey="name" axisLine={false} tickLine={false} />
         <YAxis axisLine={false} tickLine={false} />
         <Tooltip
@@ -25,7 +32,11 @@ export const Chart = ({ data = [] }) => {
           }}
         />
         <Legend />
-        <CartesianGrid strokeDasharray="4 8" vertical={false} stroke="#e4dfd6" />
+        <CartesianGrid
+          strokeDasharray="4 8"
+          vertical={false}
+          stroke="#e4dfd6"
+        />
         <Bar dataKey="total" fill="#4f46e5" radius={[10, 10, 10, 10]} />
       </BarChart>
     </ResponsiveContainer>

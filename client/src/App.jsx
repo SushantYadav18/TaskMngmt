@@ -13,6 +13,10 @@ import Tasks from "./pages/Tasks";
 import Trash from "./pages/Trash";
 import Users from "./pages/Users";
 import Dashboard from "./pages/dashboard";
+import Teams from "./pages/Teams";
+import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
+import SchedulingAnalysis from "./pages/SchedulingAnalysis";
 import { setOpenSidebar } from "./redux/slices/authSlice";
 
 function AdminRoute({ children }) {
@@ -44,7 +48,7 @@ function Layout() {
 
       <MobileSidebar />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto">
         <Navbar />
 
         <div className="page-content px-5 py-6 md:px-8 lg:px-10 2xl:px-14 2xl:py-8">
@@ -82,7 +86,7 @@ const MobileSidebar = () => {
           <div
             ref={(node) => (mobileMenuRef.current = node)}
             className={clsx(
-              "md:hidden w-full h-full bg-black/50 backdrop-blur-sm transition-all duration-700 transform ",
+              "fixed inset-0 z-50 md:hidden w-full h-full bg-black/50 backdrop-blur-sm transition-all duration-700 transform ",
               isSidebarOpen ? "translate-x-0" : "translate-x-full",
             )}
             onClick={() => closeSidebar()}
@@ -119,7 +123,21 @@ function App() {
           <Route path="/completed/:status" element={<Tasks />} />
           <Route path="/in-progress/:status" element={<Tasks />} />
           <Route path="/todo/:status" element={<Tasks />} />
-          <Route path="/team" element={<Users />} />
+          <Route path="/team" element={<Teams />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:id" element={<ProjectDetails />} />
+          <Route
+            path="/projects/:id/scheduling"
+            element={<SchedulingAnalysis />}
+          />
+          <Route
+            path="/teams"
+            element={
+              <AdminRoute>
+                <Teams />
+              </AdminRoute>
+            }
+          />
           <Route path="/pending-users" element={<Users pendingOnly />} />
           <Route path="/trashed" element={<Trash />} />
           <Route path="/task/:id" element={<TaskDetails />} />
@@ -138,7 +156,8 @@ function App() {
           <Route path="completed/:status" element={<Tasks />} />
           <Route path="in-progress/:status" element={<Tasks />} />
           <Route path="todo/:todo" element={<Tasks />} />
-          <Route path="team" element={<Users />} />
+          <Route path="team" element={<Teams />} />
+          <Route path="teams" element={<Teams />} />
           <Route path="pending-users" element={<Users pendingOnly />} />
           <Route path="trashed" element={<Trash />} />
           <Route path="task/:id" element={<TaskDetails />} />
