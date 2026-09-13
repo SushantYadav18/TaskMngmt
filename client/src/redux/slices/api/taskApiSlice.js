@@ -102,6 +102,16 @@ export const taskApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["Task"],
     }),
 
+    updateSubTask: builder.mutation({
+      query: ({ id, subtaskId, completed }) => ({
+        url: `${TASK_URL}/${id}/subtasks/${subtaskId}`,
+        method: "PUT",
+        body: { completed },
+        credentials: "include",
+      }),
+      invalidatesTags: ["Task", "Project"],
+    }),
+
     getTaskDependencies: builder.query({
       query: (id) => ({
         url: `${TASK_URL}/${id}/dependencies`,
@@ -153,6 +163,7 @@ export const {
   useDeleteRestoreTaskMutation,
   useDuplicateTaskMutation,
   useAddSubTaskMutation,
+  useUpdateSubTaskMutation,
   useGetTaskDependenciesQuery,
   useAddTaskDependencyMutation,
   useRemoveTaskDependencyMutation,

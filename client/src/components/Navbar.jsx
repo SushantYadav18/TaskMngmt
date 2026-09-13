@@ -20,7 +20,7 @@ const Navbar = () => {
   }, [isDark]);
 
   return (
-    <div className="flex justify-between items-center px-5 md:px-8 lg:px-10 2xl:px-14 py-5 sticky z-10 top-0">
+    <div className="navbar-shell flex justify-between items-center px-5 md:px-8 lg:px-10 2xl:px-14 py-5 sticky z-10 top-0 border-b border-gray-200/80">
       <div className="flex gap-4 items-center">
         <button
           onClick={() => dispatch(setOpenSidebar(true))}

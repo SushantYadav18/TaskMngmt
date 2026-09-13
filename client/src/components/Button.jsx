@@ -1,7 +1,14 @@
 import clsx from "clsx";
 import React from "react";
 
-const Button = ({ icon, className, label, type, onClick = () => {} }) => {
+const Button = ({
+  icon,
+  className,
+  label,
+  type,
+  onClick = () => {},
+  disabled = false,
+}) => {
   return (
     <button
       type={type || "button"}
@@ -10,6 +17,7 @@ const Button = ({ icon, className, label, type, onClick = () => {} }) => {
         className,
       )}
       onClick={onClick}
+      disabled={disabled}
     >
       <span>{label}</span>
       {icon && icon}

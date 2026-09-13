@@ -87,6 +87,7 @@ A Project Leader is a project-specific relationship, not an additional global va
   - `low`
 - Task duplication by administrators.
 - Embedded subtasks.
+- Lightweight subtask checklist items with persisted `completed` state.
 - Embedded activities and timeline display.
 - Task trash and restore.
 - Permanent task deletion with dependency and reference cleanup.
@@ -123,6 +124,14 @@ Implemented dependency rules:
 - Deleting a task removes dependencies where it is either predecessor or successor.
 - Deleting a project removes dependencies for all tasks in that project.
 - The system does not automatically reconnect surrounding tasks after deletion.
+
+### Subtask Checklist
+
+Subtasks are embedded checklist items inside a parent Task. Each item contains only a trimmed title and a persisted `completed` boolean. They intentionally have no assignee, date, priority, dependency, project, duration, or CPM fields.
+
+Users who can access the parent task can add subtasks and toggle their completion. The backend uses the existing parent-task access middleware for both operations. Completing a subtask does not change the parent task's stage, scheduling fields, dependencies, or project progress.
+
+The Task Details page provides an inline checklist with a title-only Add form. Checked items are crossed out, and RTK Query invalidates the task cache after create/toggle mutations so later views receive the persisted state.
 
 ### Scheduling Fields and Progress
 
@@ -737,6 +746,7 @@ All routes are mounted under `/api`. Protected routes require the JWT cookie and
 | `GET`    | `/task`                                       | Authenticated                                           | List active or trashed tasks according to query and visibility rules. |
 | `GET`    | `/task/:id`                                   | Task-access user                                        | Return task details, activities, and dependency summary.              |
 | `PUT`    | `/task/create-subtask/:id`                    | Task-access user                                        | Add an embedded subtask.                                              |
+| `PUT`    | `/task/:id/subtasks/:subtaskId`               | Task-access user                                        | Persist a subtask's checked/unchecked `completed` state.              |
 | `PUT`    | `/task/update/:id`                            | Task-access user                                        | Edit task data and validate status changes.                           |
 | `PUT`    | `/task/:id`                                   | Admin or Project Leader of the task's project           | Move a task to trash.                                                 |
 | `DELETE` | `/task/delete-restore/:id?actionType=restore` | Existing task-access rules                              | Restore one task.                                                     |

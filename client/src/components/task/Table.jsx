@@ -5,6 +5,7 @@ import {
   MdKeyboardArrowDown,
   MdKeyboardArrowUp,
   MdKeyboardDoubleArrowUp,
+  MdDelete,
 } from "react-icons/md";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
@@ -29,7 +30,7 @@ const Table = ({ tasks }) => {
   const [selected, setSelected] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [openEdit, setOpenEdit] = useState(false);
-  const [trashTask] = useTrashTaskMutation();
+  const [trashTask, { isLoading: isTrashing }] = useTrashTaskMutation();
 
   const deleteClicks = (id) => {
     setSelected(id);
@@ -37,6 +38,7 @@ const Table = ({ tasks }) => {
   };
 
   const deleteHandler = async () => {
+    if (!selected || isTrashing) return;
     try {
       const response = await trashTask(selected).unwrap();
       toast.success(response?.message || "Task moved to trash.");
@@ -142,12 +144,23 @@ const Table = ({ tasks }) => {
           />
         )}
 
-        <Button
-          className="text-red-700 hover:text-red-500 sm:px-0 text-sm md:text-base"
-          label="Delete"
-          type="button"
-          onClick={() => deleteClicks(task._id)}
-        />
+        {Boolean(
+          user?.isAdmin ||
+          String(
+            task?.project?.projectLeader?._id || task?.project?.projectLeader,
+          ) === String(user?._id),
+        ) && (
+          <button
+            type="button"
+            title="Delete task"
+            aria-label={`Delete ${task?.title || "task"}`}
+            disabled={isTrashing}
+            onClick={() => deleteClicks(task._id)}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-red-700 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <MdDelete className="text-lg" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -176,7 +189,9 @@ const Table = ({ tasks }) => {
       <ConfirmatioDialog
         open={openDialog}
         setOpen={setOpenDialog}
+        msg="Move this task to trash? Its dependencies will be cleaned up when it is permanently deleted."
         onClick={deleteHandler}
+        isLoading={isTrashing}
       />
     </>
   );

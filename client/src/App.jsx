@@ -48,7 +48,7 @@ function Layout() {
 
       <MobileSidebar />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto">
         <Navbar />
 
         <div className="page-content px-5 py-6 md:px-8 lg:px-10 2xl:px-14 2xl:py-8">
@@ -86,7 +86,7 @@ const MobileSidebar = () => {
           <div
             ref={(node) => (mobileMenuRef.current = node)}
             className={clsx(
-              "md:hidden w-full h-full bg-black/50 backdrop-blur-sm transition-all duration-700 transform ",
+              "fixed inset-0 z-50 md:hidden w-full h-full bg-black/50 backdrop-blur-sm transition-all duration-700 transform ",
               isSidebarOpen ? "translate-x-0" : "translate-x-full",
             )}
             onClick={() => closeSidebar()}

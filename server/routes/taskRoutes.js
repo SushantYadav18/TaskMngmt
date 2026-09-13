@@ -13,6 +13,7 @@ import {
   postTaskActivity,
   removeTaskDependency,
   trashTask,
+  updateSubTask,
   updateTask,
 } from "../controllers/taskController.js";
 import {
@@ -47,6 +48,12 @@ router.get(
 router.get("/:id", protectRoute, canAccessTask, getTask);
 
 router.put("/create-subtask/:id", protectRoute, canAccessTask, createSubTask);
+router.put(
+  "/:id/subtasks/:subtaskId",
+  protectRoute,
+  canAccessTask,
+  updateSubTask,
+);
 router.put("/update/:id", protectRoute, canAccessTask, updateTask);
 router.put("/:id", protectRoute, canDeleteTask, trashTask);
 

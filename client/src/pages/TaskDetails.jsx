@@ -10,16 +10,19 @@ import {
   MdKeyboardDoubleArrowUp,
   MdOutlineDoneAll,
   MdOutlineMessage,
-  MdTaskAlt,
 } from "react-icons/md";
 import { RxActivityLog } from "react-icons/rx";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Tabs from "../components/Tabs";
 import { PRIOTITYSTYELS, TASK_TYPE, getInitials } from "../utils";
 import Loading from "../components/Loader";
 import Button from "../components/Button";
+import ConfirmationDialog from "../components/Dialogs";
 import {
+  useAddSubTaskMutation,
+  useTrashTaskMutation,
+  useUpdateSubTaskMutation,
   useAddTaskDependencyMutation,
   useGetTaskByIdQuery,
   useGetTaskDependenciesQuery,
@@ -96,6 +99,7 @@ const act_types = [
 
 const TaskDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { data, isLoading, isError, refetch } = useGetTaskByIdQuery(id);
   const { data: dependencyData } = useGetTaskDependenciesQuery(id, {
@@ -114,6 +118,12 @@ const TaskDetails = () => {
     useRemoveTaskDependencyMutation();
   const [postTaskActivity, { isLoading: isStatusUpdating }] =
     usePostTaskActivityMutation();
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [addSubTask, { isLoading: isAddingSubtask }] = useAddSubTaskMutation();
+  const [updateSubTask, { isLoading: isUpdatingSubtask }] =
+    useUpdateSubTaskMutation();
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [trashTask, { isLoading: isDeletingTask }] = useTrashTaskMutation();
 
   const allDependencies = dependencyData?.dependencies ||
     task?.dependencies || {
@@ -139,6 +149,14 @@ const TaskDetails = () => {
     user?.isAdmin ||
     user?._id === task?.project?.projectLeader?._id ||
     user?._id === task?.assignee?._id,
+  );
+  const projectLeaderId =
+    projectData?.project?.projectLeader?._id ||
+    projectData?.project?.projectLeader ||
+    task?.project?.projectLeader?._id ||
+    task?.project?.projectLeader;
+  const canDeleteTask = Boolean(
+    user?.isAdmin || String(projectLeaderId) === String(user?._id),
   );
 
   useEffect(() => {
@@ -210,6 +228,48 @@ const TaskDetails = () => {
     }
   };
 
+  const handleAddSubtask = async (event) => {
+    event.preventDefault();
+    const title = subtaskTitle.trim();
+    if (!title) {
+      toast.error("Subtask text is required.");
+      return;
+    }
+
+    try {
+      await addSubTask({ id, title }).unwrap();
+      setSubtaskTitle("");
+      toast.success("Subtask added.");
+    } catch (error) {
+      toast.error(error?.data?.message || "Unable to add subtask.");
+    }
+  };
+
+  const handleToggleSubtask = async (subtask) => {
+    try {
+      await updateSubTask({
+        id,
+        subtaskId: subtask._id,
+        completed: !subtask.completed,
+      }).unwrap();
+    } catch (error) {
+      toast.error(error?.data?.message || "Unable to update subtask.");
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (isDeletingTask) return;
+
+    try {
+      const response = await trashTask(id).unwrap();
+      toast.success(response?.message || "Task moved to trash.");
+      setOpenDeleteDialog(false);
+      navigate("/tasks");
+    } catch (error) {
+      toast.error(error?.data?.message || "Failed to move task to trash.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="py-10">
@@ -228,7 +288,18 @@ const TaskDetails = () => {
 
   return (
     <div className="w-full flex flex-col gap-3 mb-4 overflow-y-hidden">
-      <h1 className="text-2xl text-gray-600 font-bold">{task?.title}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl text-gray-600 font-bold">{task?.title}</h1>
+        {canDeleteTask && (
+          <Button
+            type="button"
+            label={isDeletingTask ? "Deleting..." : "Delete Task"}
+            onClick={() => setOpenDeleteDialog(true)}
+            disabled={isDeletingTask}
+            className="bg-red-50 text-red-700 hover:bg-red-100"
+          />
+        )}
+      </div>
 
       <Tabs tabs={TABS} setSelected={setSelected}>
         {selected === 0 ? (
@@ -519,32 +590,60 @@ const TaskDetails = () => {
                 </div>
 
                 <div className="space-y-4 py-6">
-                  <p className="text-gray-500 font-semibold text-sm">
-                    SUB-TASKS
-                  </p>
-                  <div className="space-y-8">
-                    {task?.subTasks?.map((el, index) => (
-                      <div key={index} className="flex gap-3">
-                        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-violet-50-200">
-                          <MdTaskAlt className="text-violet-600" size={26} />
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex gap-2 items-center">
-                            <span className="text-sm text-gray-500">
-                              {new Date(el?.date).toDateString()}
-                            </span>
-
-                            <span className="px-2 py-0.5 text-center text-sm rounded-full bg-violet-100 text-violet-700 font-semibold">
-                              {el?.tag}
-                            </span>
-                          </div>
-
-                          <p className="text-gray-700">{el?.title}</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-gray-500 font-semibold text-sm">
+                      SUBTASKS
+                    </p>
+                    <span className="text-xs font-semibold text-gray-500">
+                      {task?.subTasks?.filter((item) => item.completed)
+                        .length || 0}
+                      /{task?.subTasks?.length || 0} complete
+                    </span>
                   </div>
+                  <div className="space-y-2">
+                    {task?.subTasks?.map((subtask) => (
+                      <label
+                        key={subtask._id}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 px-3 py-3"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(subtask.completed)}
+                          disabled={isUpdatingSubtask}
+                          onChange={() => handleToggleSubtask(subtask)}
+                          className="h-4 w-4 accent-indigo-600"
+                        />
+                        <span
+                          className={
+                            subtask.completed
+                              ? "text-gray-400 line-through"
+                              : "text-gray-700"
+                          }
+                        >
+                          {subtask.title}
+                        </span>
+                      </label>
+                    ))}
+                    {!task?.subTasks?.length && (
+                      <p className="text-sm text-gray-500">No subtasks yet.</p>
+                    )}
+                  </div>
+                  <form onSubmit={handleAddSubtask} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={subtaskTitle}
+                      onChange={(event) => setSubtaskTitle(event.target.value)}
+                      maxLength={200}
+                      placeholder="Enter subtask..."
+                      className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <Button
+                      type="submit"
+                      label={isAddingSubtask ? "Adding..." : "Add"}
+                      className="bg-indigo-600 text-white"
+                      disabled={isAddingSubtask || !subtaskTitle.trim()}
+                    />
+                  </form>
                 </div>
               </div>
 
@@ -568,6 +667,13 @@ const TaskDetails = () => {
           <Activities activity={task?.activities} id={id} />
         )}
       </Tabs>
+      <ConfirmationDialog
+        open={openDeleteDialog}
+        setOpen={setOpenDeleteDialog}
+        msg="Move this task to trash? Its dependency cleanup will follow the existing task deletion rules."
+        onClick={handleDeleteTask}
+        isLoading={isDeletingTask}
+      />
     </div>
   );
 };

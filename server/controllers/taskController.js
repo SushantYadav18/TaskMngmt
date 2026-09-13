@@ -13,6 +13,10 @@ import {
   validateTaskDependency,
   validateTaskStatusTransition,
 } from "../utils/taskDependencies.js";
+import {
+  normalizeSubtaskTitle,
+  validateSubtaskTitle,
+} from "../utils/subtasks.js";
 
 export const createTask = async (req, res) => {
   try {
@@ -677,17 +681,23 @@ export const removeTaskDependency = async (req, res) => {
 
 export const createSubTask = async (req, res) => {
   try {
-    const { title, tag, date } = req.body;
-
     const { id } = req.params;
+    const validationError = validateSubtaskTitle(req.body.title);
+    if (validationError) {
+      return res.status(400).json({ status: false, message: validationError });
+    }
 
     const newSubTask = {
-      title,
-      date,
-      tag,
+      title: normalizeSubtaskTitle(req.body.title),
+      completed: false,
     };
 
     const task = await Task.findById(id);
+    if (!task) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Task not found." });
+    }
 
     task.subTasks.push(newSubTask);
 
@@ -696,6 +706,43 @@ export const createSubTask = async (req, res) => {
     res
       .status(200)
       .json({ status: true, message: "SubTask added successfully." });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const updateSubTask = async (req, res) => {
+  try {
+    const { id, subtaskId } = req.params;
+    const task = await Task.findById(id);
+    if (!task) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Task not found." });
+    }
+
+    const subtask = task.subTasks.id(subtaskId);
+    if (!subtask) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Subtask not found." });
+    }
+    if (typeof req.body.completed !== "boolean") {
+      return res.status(400).json({
+        status: false,
+        message: "Subtask completed must be a boolean.",
+      });
+    }
+
+    subtask.completed = req.body.completed;
+    await task.save();
+
+    res.status(200).json({
+      status: true,
+      subtask,
+      message: "Subtask updated successfully.",
+    });
   } catch (error) {
     console.log(error);
     return res.status(400).json({ status: false, message: error.message });

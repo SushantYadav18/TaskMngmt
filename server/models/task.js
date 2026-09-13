@@ -50,9 +50,8 @@ const taskSchema = new Schema(
 
     subTasks: [
       {
-        title: String,
-        date: Date,
-        tag: String,
+        title: { type: String, required: true, trim: true, maxlength: 200 },
+        completed: { type: Boolean, default: false },
       },
     ],
     assets: [String],
