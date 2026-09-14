@@ -19,8 +19,10 @@ const Teams = () => {
   const { user: currentUser } = useSelector((state) => state.auth);
   const isAdmin = Boolean(currentUser?.isAdmin);
   const isTeamLeader = currentUser?.role?.toUpperCase() === "TEAM_LEADER";
-  const { data: teamsData = { teams: [] }, refetch: refetchTeams } =
-    useGetTeamsQuery();
+  const {
+    data: teamsData = { teams: [], unassignedMembers: [] },
+    refetch: refetchTeams,
+  } = useGetTeamsQuery();
   const { data: users = [], refetch: refetchUsers } = useGetTeamListQuery();
   const [createTeam, { isLoading: isCreating }] = useCreateTeamMutation();
   const [moveTeamMember, { isLoading: isMoving }] = useMoveTeamMemberMutation();
@@ -45,6 +47,8 @@ const Teams = () => {
       team.name.toLowerCase().includes(normalizedSearch),
     );
   }, [search, teamsData.teams]);
+
+  const unassignedMembers = teamsData.unassignedMembers || [];
 
   const submitTeam = async (event) => {
     event.preventDefault();
@@ -172,6 +176,53 @@ const Teams = () => {
       )}
 
       <div className="mt-6 space-y-6">
+        {isAdmin && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-md">
+            <div className="border-b border-amber-200 pb-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">
+                Unassigned Members
+              </p>
+              <p className="mt-2 text-sm text-amber-800">
+                Approved members without a team. Drag a member into a team to
+                assign them.
+              </p>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {unassignedMembers.map((member) => (
+                <article
+                  key={member._id}
+                  draggable={isAdmin && !isMoving}
+                  onDragStart={(event) => startDragging(event, member)}
+                  onDragEnd={() => {
+                    setDraggedMember(null);
+                    setDraggedOverTeam(null);
+                  }}
+                  className={`cursor-grab rounded-xl border border-amber-200 bg-white p-4 active:cursor-grabbing ${
+                    draggedMember?._id === member._id
+                      ? "ring-2 ring-indigo-400"
+                      : ""
+                  }`}
+                >
+                  <p className="font-semibold text-gray-900">{member.name}</p>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-gray-500">
+                    {roleLabel(member.role)}
+                  </p>
+                  <p className="mt-2 break-all text-sm text-gray-500">
+                    {member.email}
+                  </p>
+                  <span className="mt-3 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase text-emerald-700">
+                    Approved · Unassigned
+                  </span>
+                </article>
+              ))}
+            </div>
+            {!unassignedMembers.length && (
+              <p className="mt-4 rounded-xl border border-dashed border-amber-200 p-5 text-sm text-amber-800">
+                No approved unassigned members.
+              </p>
+            )}
+          </section>
+        )}
         {visibleTeams.map((team) => {
           const members = (team.members || []).filter(
             (member) => member._id !== team.leader?._id,
@@ -319,7 +370,7 @@ const Teams = () => {
             </section>
           );
         })}
-        {visibleTeams.length === 0 && (
+        {visibleTeams.length === 0 && !unassignedMembers.length && (
           <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-md">
             {search
               ? "No teams match your search."
