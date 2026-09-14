@@ -12,6 +12,7 @@ export const getTeams = async (req, res) => {
       "isAdmin role team",
     );
     let teamQuery = {};
+    let unassignedMembers = [];
 
     if (!requester?.isAdmin) {
       if (normalizeRole(requester?.role) === ROLES.TEAM_LEADER) {
@@ -24,13 +25,21 @@ export const getTeams = async (req, res) => {
       } else {
         return res.status(200).json({ status: true, teams: [] });
       }
+    } else {
+      unassignedMembers = await User.find({
+        status: "approved",
+        isActive: true,
+        team: null,
+      })
+        .select("name email role team isActive status")
+        .sort({ name: 1 });
     }
 
     const teams = await Team.find(teamQuery)
       .populate("leader", "name email role team isActive status")
       .populate("members", "name email role team status isActive")
       .sort({ name: 1 });
-    res.status(200).json({ status: true, teams });
+    res.status(200).json({ status: true, teams, unassignedMembers });
   } catch (error) {
     res.status(400).json({ status: false, message: error.message });
   }
