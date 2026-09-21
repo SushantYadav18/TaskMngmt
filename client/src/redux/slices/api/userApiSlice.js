@@ -28,6 +28,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
         method: "GET",
         credentials: "include",
       }),
+      providesTags: ["User"],
     }),
 
     getTeams: builder.query({
@@ -36,7 +37,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
         method: "GET",
         credentials: "include",
       }),
-      providesTags: ["Team"],
+      providesTags: ["Team", "User"],
     }),
 
     createTeam: builder.mutation({
@@ -93,6 +94,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
         body: { status },
         credentials: "include",
       }),
+      invalidatesTags: ["Team", "User"],
     }),
 
     deleteUser: builder.mutation({
