@@ -31,13 +31,6 @@ import {
 } from "../redux/slices/api/taskApiSlice";
 import { useGetProjectByIdQuery } from "../redux/slices/api/projectApiSlice";
 
-const assets = [
-  "https://images.pexels.com/photos/2418664/pexels-photo-2418664.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-  "https://images.pexels.com/photos/8797307/pexels-photo-8797307.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-  "https://images.pexels.com/photos/2534523/pexels-photo-2534523.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-  "https://images.pexels.com/photos/804049/pexels-photo-804049.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-];
-
 const ICONS = {
   high: <MdKeyboardDoubleArrowUp />,
   medium: <MdKeyboardArrowUp />,
@@ -447,13 +440,6 @@ const TaskDetails = () => {
 
                 <div className="flex items-center gap-8 p-4 border-y border-gray-200">
                   <div className="space-x-2">
-                    <span className="font-semibold">Assets :</span>
-                    <span>{task?.assets?.length}</span>
-                  </div>
-
-                  <span className="text-gray-400">|</span>
-
-                  <div className="space-x-2">
                     <span className="font-semibold">Sub-Task :</span>
                     <span>{task?.subTasks?.length}</span>
                   </div>
@@ -644,21 +630,6 @@ const TaskDetails = () => {
                       disabled={isAddingSubtask || !subtaskTitle.trim()}
                     />
                   </form>
-                </div>
-              </div>
-
-              <div className="w-full md:w-1/2 space-y-8">
-                <p className="text-lg font-semibold">ASSETS</p>
-
-                <div className="w-full grid grid-cols-2 gap-4">
-                  {task?.assets?.map((el, index) => (
-                    <img
-                      key={index}
-                      src={el}
-                      alt={task?.title}
-                      className="w-full rounded h-28 md:h-36 2xl:h-52 cursor-pointer transition-all duration-700 hover:scale-125 hover:z-50"
-                    />
-                  ))}
                 </div>
               </div>
             </div>

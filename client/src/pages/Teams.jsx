@@ -48,7 +48,9 @@ const Teams = () => {
     );
   }, [search, teamsData.teams]);
 
-  const unassignedMembers = teamsData.unassignedMembers || [];
+  const unassignedMembers = (teamsData.unassignedMembers || []).filter(
+    (member) => !member?.isAdmin && member?.role?.toUpperCase() !== "ADMIN",
+  );
 
   const submitTeam = async (event) => {
     event.preventDefault();

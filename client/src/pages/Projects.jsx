@@ -11,10 +11,19 @@ import {
   useGetProjectsQuery,
 } from "../redux/slices/api/projectApiSlice";
 
+const getTodayInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const Projects = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const isAdmin = Boolean(user?.isAdmin);
+  const minDate = getTodayInputValue();
   const { data: projectData = { projects: [] } } = useGetProjectsQuery();
   const { data: teamData = { teams: [] } } = useGetTeamsQuery();
   const [createProject, { isLoading }] = useCreateProjectMutation();
@@ -129,6 +138,7 @@ const Projects = () => {
             Planned start
             <input
               type="date"
+              min={minDate}
               value={form.plannedStart}
               onChange={(event) =>
                 updateField("plannedStart", event.target.value)
@@ -140,6 +150,7 @@ const Projects = () => {
             Planned deadline
             <input
               type="date"
+              min={minDate}
               value={form.plannedDeadline}
               onChange={(event) =>
                 updateField("plannedDeadline", event.target.value)

@@ -36,6 +36,18 @@ export const projectApiSlice = apiSlice.injectEndpoints({
       }),
       providesTags: ["Project", "Task"],
     }),
+    getProjectWorkload: builder.query({
+      query: ({ id, memberId, priority }) => ({
+        url: `${PROJECT_URL}/${id}/workload`,
+        method: "GET",
+        params: {
+          ...(memberId ? { memberId } : {}),
+          ...(priority ? { priority } : {}),
+        },
+        credentials: "include",
+      }),
+      providesTags: ["Project", "Task"],
+    }),
     createProject: builder.mutation({
       query: (data) => ({
         url: PROJECT_URL,
@@ -70,6 +82,7 @@ export const {
   useGetProjectByIdQuery,
   useGetProjectDependencyOrderQuery,
   useGetProjectCpmQuery,
+  useGetProjectWorkloadQuery,
   useCreateProjectMutation,
   useUpdateProjectMutation,
   useArchiveProjectMutation,
