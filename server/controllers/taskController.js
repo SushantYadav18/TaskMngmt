@@ -9,6 +9,7 @@ import {
   canWorkOnProjectTask,
 } from "../utils/projectAccess.js";
 import { validateTaskSchedule } from "../utils/scheduling.js";
+import { getTaskAssignmentDate } from "../utils/taskAssignment.js";
 import {
   validateTaskDependency,
   validateTaskStatusTransition,
@@ -17,6 +18,10 @@ import {
   normalizeSubtaskTitle,
   validateSubtaskTitle,
 } from "../utils/subtasks.js";
+import {
+  DEFAULT_WORKLOAD_CONFIG,
+  validateProjectTaskAssignment,
+} from "../utils/workload.js";
 
 export const createTask = async (req, res) => {
   try {
@@ -27,13 +32,12 @@ export const createTask = async (req, res) => {
       assignee,
       project: projectId,
       stage,
-      date,
       priority,
-      assets,
       plannedStartDate,
       dueDate,
       estimatedDuration,
     } = req.body;
+    const date = getTaskAssignmentDate();
     const creator = await User.findById(userId);
     const target = await User.findById(assignee);
     const scheduleError = validateTaskSchedule({
@@ -77,6 +81,26 @@ export const createTask = async (req, res) => {
           message: "The task assignee must participate in this project.",
         });
       }
+
+      const projectTasks = await Task.find({
+        project: project._id,
+        isTrashed: false,
+      });
+      const workloadCheck = validateProjectTaskAssignment({
+        projectId: project._id,
+        memberId: target._id,
+        tasks: projectTasks,
+        newPriority: priority,
+        now: new Date(),
+        config: DEFAULT_WORKLOAD_CONFIG,
+      });
+
+      if (!workloadCheck.allowed) {
+        return res.status(400).json({
+          status: false,
+          message: workloadCheck.message,
+        });
+      }
     } else if (!creator.isAdmin || !canDelegateTo(creator, target)) {
       return res.status(403).json({
         status: false,
@@ -108,7 +132,6 @@ export const createTask = async (req, res) => {
       stage: stage.toLowerCase(),
       date,
       priority: priority.toLowerCase(),
-      assets,
       activities: activity,
     });
 
@@ -143,7 +166,7 @@ export const duplicateTask = async (req, res) => {
       assets: task.assets,
       priority: task.priority,
       stage: task.stage,
-      date: task.date,
+      date: getTaskAssignmentDate(),
       plannedStartDate: task.plannedStartDate,
       dueDate: task.dueDate,
       estimatedDuration: task.estimatedDuration,
@@ -155,7 +178,7 @@ export const duplicateTask = async (req, res) => {
       text +
       ` The task priority is set a ${
         task.priority
-      } priority, so check and act accordingly. The task date is ${task.date.toDateString()}. Thank you!!!`;
+      } priority, so check and act accordingly. The task date is ${newTask.date.toDateString()}. Thank you!!!`;
 
     await Notice.create({
       team: [task.assignee],
@@ -754,10 +777,8 @@ export const updateTask = async (req, res) => {
     const { id } = req.params;
     const {
       title,
-      date,
       stage,
       priority,
-      assets,
       plannedStartDate,
       dueDate,
       estimatedDuration,
@@ -818,9 +839,7 @@ export const updateTask = async (req, res) => {
     }
 
     task.title = title;
-    task.date = date;
     task.priority = priority.toLowerCase();
-    task.assets = assets;
     task.plannedStartDate = plannedStartDate || null;
     task.dueDate = dueDate || null;
     task.estimatedDuration = estimatedDuration || null;
@@ -845,8 +864,9 @@ export const delegateTask = async (req, res) => {
     const source = await User.findById(req.user.userId);
 
     let allowed = false;
+    let project = null;
     if (req.task.project) {
-      const project = await Project.findById(req.task.project)
+      project = await Project.findById(req.task.project)
         .populate("projectLeader", "role team isAdmin")
         .populate("members", "role team isAdmin");
       if (project) {
@@ -865,7 +885,30 @@ export const delegateTask = async (req, res) => {
       });
     }
 
+    if (req.task.project && project) {
+      const projectTasks = await Task.find({
+        project: project._id,
+        isTrashed: false,
+      });
+      const workloadCheck = validateProjectTaskAssignment({
+        projectId: project._id,
+        memberId: target._id,
+        tasks: projectTasks,
+        newPriority: req.task.priority,
+        now: new Date(),
+        config: DEFAULT_WORKLOAD_CONFIG,
+      });
+
+      if (!workloadCheck.allowed) {
+        return res.status(400).json({
+          status: false,
+          message: workloadCheck.message,
+        });
+      }
+    }
+
     req.task.assignee = target._id;
+    req.task.date = getTaskAssignmentDate();
     req.task.parentTask = req.task.parentTask || req.task._id;
     req.task.activities.push({
       type: "assigned",

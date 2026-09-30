@@ -13,6 +13,12 @@ import { ROLES, normalizeRole } from "../utils/roles.js";
 import { calculateProjectProgress } from "../utils/scheduling.js";
 import { topologicalSortTasks } from "../utils/taskDependencies.js";
 import { calculateCriticalPath } from "../utils/cpm.js";
+import {
+  DEFAULT_WORKLOAD_CONFIG,
+  getProjectMemberWorkload,
+  getProjectWorkloadOverview,
+  validateProjectTaskAssignment,
+} from "../utils/workload.js";
 
 const participantFields = "name title role email team isActive status";
 
@@ -126,6 +132,145 @@ export const createProject = async (req, res) => {
       status: true,
       project: populatedProject,
       message: "Project created successfully.",
+    });
+  } catch (error) {
+    res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const getProjectWorkload = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { memberId, priority } = req.query;
+    const project = await populateProject(Project.findById(id));
+
+    if (!project) {
+      return res
+        .status(404)
+        .json({ status: false, message: "Project not found." });
+    }
+
+    const isProjectLeader =
+      String(project.projectLeader?._id || project.projectLeader) ===
+      String(req.user.userId);
+
+    if (!req.user.isAdmin && !isProjectLeader) {
+      return res.status(403).json({
+        status: false,
+        message:
+          "Only the project leader or an administrator can view workload data.",
+      });
+    }
+
+    const projectTasks = await Task.find({
+      project: project._id,
+      isTrashed: false,
+    });
+
+    const members = (project.members || []).map((member) => ({
+      _id: String(member._id || member),
+      name: member.name || "Member",
+      email: member.email || null,
+      role: member.role || null,
+      team: member.team
+        ? {
+            _id: String(member.team._id || member.team),
+            name: member.team.name || "Team",
+          }
+        : null,
+    }));
+
+    const memberSummaries = members.map((member) => ({
+      ...member,
+      ...getProjectMemberWorkload({
+        projectId: project._id,
+        memberId: member._id,
+        tasks: projectTasks,
+        now: new Date(),
+        config: DEFAULT_WORKLOAD_CONFIG,
+      }),
+    }));
+
+    const workloadSummary = {
+      allocationPeriodDays: DEFAULT_WORKLOAD_CONFIG.allocationPeriodDays,
+      maxWorkload: DEFAULT_WORKLOAD_CONFIG.maxWorkload,
+      project: {
+        _id: project._id,
+        name: project.name,
+        projectLeader: project.projectLeader,
+      },
+      members: memberSummaries,
+    };
+
+    if (memberId) {
+      const selectedMember = members.find(
+        (member) => String(member._id) === String(memberId),
+      );
+      if (!selectedMember) {
+        return res.status(404).json({
+          status: false,
+          message: "Project member not found.",
+        });
+      }
+
+      const selectedSummary = getProjectMemberWorkload({
+        projectId: project._id,
+        memberId: selectedMember._id,
+        tasks: projectTasks,
+        now: new Date(),
+        config: DEFAULT_WORKLOAD_CONFIG,
+      });
+
+      return res.status(200).json({
+        status: true,
+        ...workloadSummary,
+        member: {
+          ...selectedMember,
+          ...selectedSummary,
+        },
+        preview:
+          priority &&
+          validateProjectTaskAssignment({
+            projectId: project._id,
+            memberId: selectedMember._id,
+            tasks: projectTasks,
+            newPriority: priority,
+            now: new Date(),
+            config: DEFAULT_WORKLOAD_CONFIG,
+          }),
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      ...workloadSummary,
+    });
+  } catch (error) {
+    res.status(400).json({ status: false, message: error.message });
+  }
+};
+
+export const getAdminProjectWorkloadOverview = async (req, res) => {
+  try {
+    const projects = await populateProject(
+      Project.find().sort({ updatedAt: -1 }),
+    );
+    const projectIds = projects.map((project) => project._id);
+    const allProjectTasks = await Task.find({
+      project: { $in: projectIds },
+      isTrashed: false,
+    });
+
+    const overview = getProjectWorkloadOverview({
+      projects,
+      tasks: allProjectTasks,
+      now: new Date(),
+      config: DEFAULT_WORKLOAD_CONFIG,
+    });
+
+    res.status(200).json({
+      status: true,
+      ...overview,
     });
   } catch (error) {
     res.status(400).json({ status: false, message: error.message });

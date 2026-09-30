@@ -7,10 +7,16 @@ import {
 } from "../utils/scheduling.js";
 
 test("valid task schedule accepts ordered dates and positive working-day duration", () => {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(today.getDate() + 3);
+  const due = new Date(today);
+  due.setDate(today.getDate() + 6);
+
   assert.equal(
     validateTaskSchedule({
-      plannedStartDate: "2026-09-15",
-      dueDate: "2026-09-18",
+      plannedStartDate: start,
+      dueDate: due,
       estimatedDuration: 3,
     }),
     null,
@@ -18,10 +24,16 @@ test("valid task schedule accepts ordered dates and positive working-day duratio
 });
 
 test("task schedule rejects reversed dates and non-positive duration", () => {
+  const today = new Date();
+  const later = new Date(today);
+  later.setDate(today.getDate() + 5);
+  const earlier = new Date(today);
+  earlier.setDate(today.getDate() + 2);
+
   assert.match(
     validateTaskSchedule({
-      plannedStartDate: "2026-09-20",
-      dueDate: "2026-09-18",
+      plannedStartDate: later,
+      dueDate: earlier,
       estimatedDuration: 3,
     }),
     /on or before/,
@@ -71,5 +83,39 @@ test("overdue means past due date and not completed", () => {
   assert.equal(
     isTaskOverdue({ dueDate: "2026-09-21", stage: "todo" }, now),
     false,
+  );
+});
+
+test("task dates must not be earlier than the current local day", () => {
+  const actualToday = new Date();
+  const yesterday = new Date(actualToday);
+  yesterday.setDate(actualToday.getDate() - 1);
+  const today = new Date(actualToday);
+  const tomorrow = new Date(actualToday);
+  tomorrow.setDate(actualToday.getDate() + 1);
+
+  assert.match(
+    validateTaskSchedule({
+      plannedStartDate: yesterday,
+      dueDate: tomorrow,
+      estimatedDuration: 2,
+    }),
+    /cannot be in the past|before today/i,
+  );
+  assert.equal(
+    validateTaskSchedule({
+      plannedStartDate: today,
+      dueDate: tomorrow,
+      estimatedDuration: 2,
+    }),
+    null,
+  );
+  assert.equal(
+    validateTaskSchedule({
+      plannedStartDate: tomorrow,
+      dueDate: tomorrow,
+      estimatedDuration: 2,
+    }),
+    null,
   );
 });
