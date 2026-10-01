@@ -6,16 +6,33 @@ import ModalWrapper from "../ModalWrapper";
 import Textbox from "../Textbox";
 import UserList from "./UserList";
 import SelectList from "../SelectList";
-import { BiImages } from "react-icons/bi";
 import Button from "../Button";
 import {
   useDelegateTaskMutation,
   useCreateTaskMutation,
   useUpdateTaskMutation,
 } from "../../redux/slices/api/taskApiSlice";
+import { useGetProjectWorkloadQuery } from "../../redux/slices/api/projectApiSlice";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORIRY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
+
+const getTodayInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getDateInputValue = (value) => {
+  if (!value) return getTodayInputValue();
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const AddTask = ({ open, setOpen, task, project }) => {
   const {
@@ -25,6 +42,8 @@ const AddTask = ({ open, setOpen, task, project }) => {
     reset,
   } = useForm();
 
+  const minDate = getTodayInputValue();
+  const assignmentDate = task?.date ? getDateInputValue(task.date) : minDate;
   const [assignee, setAssignee] = useState(
     task?.assignee?._id || task?.assignee || "",
   );
@@ -32,17 +51,25 @@ const AddTask = ({ open, setOpen, task, project }) => {
   const [priority, setPriority] = useState(
     task?.priority?.toUpperCase() || PRIORIRY[2],
   );
-  const [assets, setAssets] = useState(task?.assets || []);
-  const [uploading, setUploading] = useState(false);
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
   const [delegateTask, { isLoading: isDelegating }] = useDelegateTaskMutation();
+  const { data: workloadData } = useGetProjectWorkloadQuery(
+    project
+      ? {
+          id: project._id || project,
+          memberId: assignee,
+          priority: priority.toLowerCase(),
+        }
+      : { id: null, memberId: null, priority: null },
+    { skip: !project || !assignee },
+  );
 
   useEffect(() => {
     if (task) {
       reset({
         title: task.title || "",
-        date: task.date ? new Date(task.date).toISOString().slice(0, 10) : "",
+        date: assignmentDate,
         plannedStartDate: task.plannedStartDate
           ? new Date(task.plannedStartDate).toISOString().slice(0, 10)
           : "",
@@ -54,11 +81,10 @@ const AddTask = ({ open, setOpen, task, project }) => {
       setAssignee(task.assignee?._id || task.assignee || "");
       setStage(task.stage?.toUpperCase() || LISTS[0]);
       setPriority(task.priority?.toUpperCase() || PRIORIRY[2]);
-      setAssets(task.assets || []);
     } else {
       reset({
         title: "",
-        date: "",
+        date: minDate,
         plannedStartDate: "",
         dueDate: "",
         estimatedDuration: "",
@@ -66,9 +92,8 @@ const AddTask = ({ open, setOpen, task, project }) => {
       setAssignee("");
       setStage(LISTS[0]);
       setPriority(PRIORIRY[2]);
-      setAssets([]);
     }
-  }, [task, reset]);
+  }, [task, reset, open, assignmentDate, minDate]);
 
   const submitHandler = async (data) => {
     try {
@@ -82,9 +107,7 @@ const AddTask = ({ open, setOpen, task, project }) => {
         assignee,
         ...(project ? { project: project._id || project } : {}),
         stage: stage.toLowerCase(),
-        date: data.date,
         priority: priority.toLowerCase(),
-        assets,
         plannedStartDate: data.plannedStartDate || null,
         dueDate: data.dueDate || null,
         estimatedDuration: data.estimatedDuration
@@ -92,17 +115,15 @@ const AddTask = ({ open, setOpen, task, project }) => {
           : null,
       };
 
-      const response = task
-        ? await Promise.all([
-            updateTask({ id: task._id, ...payload }).unwrap(),
-            assignee !== (task.assignee?._id || task.assignee)
-              ? delegateTask({ id: task._id, assignee }).unwrap()
-              : Promise.resolve(null),
-          ]).then(
-            ([updateResponse, delegateResponse]) =>
-              delegateResponse || updateResponse,
-          )
-        : await createTask(payload).unwrap();
+      let response;
+      if (task) {
+        response = await updateTask({ id: task._id, ...payload }).unwrap();
+        if (assignee !== (task.assignee?._id || task.assignee)) {
+          response = await delegateTask({ id: task._id, assignee }).unwrap();
+        }
+      } else {
+        response = await createTask(payload).unwrap();
+      }
 
       toast.success(
         response?.message ||
@@ -114,10 +135,6 @@ const AddTask = ({ open, setOpen, task, project }) => {
       console.error(error);
       toast.error(error?.data?.message || "Failed to save task.");
     }
-  };
-
-  const handleSelect = (e) => {
-    setAssets(Array.from(e.target.files || []).map((file) => file.name));
   };
 
   return (
@@ -156,6 +173,7 @@ const AddTask = ({ open, setOpen, task, project }) => {
                 label="Planned Start"
                 className="w-full rounded"
                 register={register("plannedStartDate")}
+                min={minDate}
               />
               <Textbox
                 placeholder="Due date"
@@ -164,6 +182,7 @@ const AddTask = ({ open, setOpen, task, project }) => {
                 label="Due Date"
                 className="w-full rounded"
                 register={register("dueDate")}
+                min={minDate}
               />
               <Textbox
                 placeholder="Working days"
@@ -192,12 +211,11 @@ const AddTask = ({ open, setOpen, task, project }) => {
                   placeholder="Date"
                   type="date"
                   name="date"
-                  label="Task Date"
+                  label="Assignment Date"
                   className="w-full rounded"
-                  register={register("date", {
-                    required: "Date is required!",
-                  })}
-                  error={errors.date ? errors.date.message : ""}
+                  register={register("date")}
+                  value={assignmentDate}
+                  disabled
                 />
               </div>
             </div>
@@ -209,34 +227,43 @@ const AddTask = ({ open, setOpen, task, project }) => {
                 selected={priority}
                 setSelected={setPriority}
               />
-
-              <div className="w-full flex items-center justify-center mt-4">
-                <label
-                  className="flex items-center gap-1 text-base text-ascent-2 hover:text-ascent-1 cursor-pointer my-4"
-                  htmlFor="imgUpload"
-                >
-                  <input
-                    type="file"
-                    className="hidden"
-                    id="imgUpload"
-                    onChange={(e) => handleSelect(e)}
-                    accept=".jpg, .png, .jpeg"
-                    multiple={true}
-                  />
-                  <BiImages />
-                  <span>Add Assets</span>
-                </label>
-              </div>
             </div>
 
+            {project && assignee && workloadData?.preview && (
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-indigo-600">
+                  Workload preview
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  <span>
+                    Current workload: {workloadData.preview.currentWorkload} /{" "}
+                    {workloadData.preview.capacity}
+                  </span>
+                  <span>
+                    New task: {workloadData.preview.addedWorkload} workload
+                    points
+                  </span>
+                  <span>
+                    After assignment: {workloadData.preview.afterWorkload} /{" "}
+                    {workloadData.preview.capacity}
+                  </span>
+                  <span>Remaining: {workloadData.preview.remainingAfter}</span>
+                </div>
+                <p className="mt-2 font-semibold">
+                  Status: {workloadData.preview.status}
+                </p>
+                {!workloadData.preview.allowed && (
+                  <p className="mt-2 text-xs font-medium text-red-700">
+                    {workloadData.preview.message}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="bg-gray-50 py-6 sm:flex sm:flex-row-reverse gap-4">
-              {uploading || isCreating || isUpdating || isDelegating ? (
+              {isCreating || isUpdating || isDelegating ? (
                 <span className="text-sm py-2 text-red-500">
-                  {isCreating
-                    ? "Creating task..."
-                    : isUpdating || isDelegating
-                      ? "Updating task..."
-                      : "Uploading assets"}
+                  {isCreating ? "Creating task..." : "Updating task..."}
                 </span>
               ) : (
                 <Button

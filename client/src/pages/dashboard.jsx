@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
+import "@n8n/chat/style.css";
+import { createChat } from "@n8n/chat";
 import {
   MdAdminPanelSettings,
   MdKeyboardArrowDown,
@@ -15,6 +17,8 @@ import { BGS, PRIOTITYSTYELS, TASK_TYPE, getInitials } from "../utils";
 import UserInfo from "../components/UserInfo";
 import { useGetDashboardStatsQuery } from "../redux/slices/api/taskApiSlice";
 import Loading from "../components/Loader";
+
+let chatInitialized = false;
 
 const TaskTable = ({ tasks }) => {
   const ICONS = {
@@ -160,6 +164,18 @@ const UserTable = ({ users }) => {
 };
 const Dashboard = () => {
   const { data, isLoading, isError } = useGetDashboardStatsQuery();
+
+  useEffect(() => {
+    if (chatInitialized) {
+      return;
+    }
+
+    createChat({
+      webhookUrl:
+        "https://sushantyadav.app.n8n.cloud/webhook/689cbb80-2b5e-4da3-84e8-f5d53d16e518/chat",
+    });
+    chatInitialized = true;
+  }, []);
 
   const summary = data || {
     totalTasks: 0,

@@ -30,6 +30,8 @@ export const getTeams = async (req, res) => {
         status: "approved",
         isActive: true,
         team: null,
+        isAdmin: false,
+        role: { $ne: "ADMIN" },
       })
         .select("name email role team isActive status")
         .sort({ name: 1 });

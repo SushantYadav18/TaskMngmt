@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import React, { useState } from "react";
 import {
-  MdAttachFile,
   MdKeyboardArrowDown,
   MdKeyboardArrowUp,
   MdKeyboardDoubleArrowUp,
@@ -67,10 +66,6 @@ const TaskCard = ({ task }) => {
             <div className="flex gap-1.5 items-center text-sm text-gray-600">
               <BiMessageAltDetail />
               <span>{task?.activities?.length}</span>
-            </div>
-            <div className="flex gap-1.5 items-center text-sm text-gray-600 ">
-              <MdAttachFile />
-              <span>{task?.assets?.length}</span>
             </div>
             <div className="flex gap-1.5 items-center text-sm text-gray-600 ">
               <FaList />

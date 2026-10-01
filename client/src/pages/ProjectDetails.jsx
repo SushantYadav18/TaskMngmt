@@ -13,6 +13,7 @@ import {
   useArchiveProjectMutation,
   useGetProjectByIdQuery,
   useGetProjectDependencyOrderQuery,
+  useGetProjectWorkloadQuery,
   useUpdateProjectMutation,
 } from "../redux/slices/api/projectApiSlice";
 
@@ -26,6 +27,8 @@ const ProjectDetails = () => {
     isLoading: isDependencyOrderLoading,
     isError: isDependencyOrderError,
   } = useGetProjectDependencyOrderQuery(id, { skip: !id });
+  const { data: workloadData, isLoading: isWorkloadLoading } =
+    useGetProjectWorkloadQuery({ id }, { skip: !id });
   const { data: teamData = { teams: [] } } = useGetTeamsQuery();
   const [archiveProject, { isLoading: isArchiving }] =
     useArchiveProjectMutation();
@@ -37,6 +40,10 @@ const ProjectDetails = () => {
   const [editMembers, setEditMembers] = useState([]);
   const [editProjectLeader, setEditProjectLeader] = useState("");
   const project = data?.project;
+  const minDate = new Date();
+  const minDateValue = `${minDate.getFullYear()}-${String(
+    minDate.getMonth() + 1,
+  ).padStart(2, "0")}-${String(minDate.getDate()).padStart(2, "0")}`;
 
   useEffect(() => {
     if (project) {
@@ -200,6 +207,7 @@ const ProjectDetails = () => {
             <input
               name="plannedStart"
               type="date"
+              min={minDateValue}
               defaultValue={
                 project.plannedStart ? project.plannedStart.slice(0, 10) : ""
               }
@@ -211,6 +219,7 @@ const ProjectDetails = () => {
             <input
               name="plannedDeadline"
               type="date"
+              min={minDateValue}
               defaultValue={
                 project.plannedDeadline
                   ? project.plannedDeadline.slice(0, 10)
@@ -339,6 +348,78 @@ const ProjectDetails = () => {
           <span>In Progress: {data.progress?.inProgress || 0}</span>
           <span>Todo: {data.progress?.todo || 0}</span>
         </div>
+      </section>
+      <section className="mt-6 rounded-2xl bg-white p-6 shadow">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-bold">Workload / Task Allocation</h2>
+          <span className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+            {workloadData?.allocationPeriodDays || 15}-day window
+          </span>
+        </div>
+        {isWorkloadLoading && (
+          <p className="mt-3 text-sm text-gray-500">Loading workload data...</p>
+        )}
+        {!isWorkloadLoading && workloadData?.members?.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-gray-600">
+                  <th className="py-2 pr-4 font-semibold">Member</th>
+                  <th className="py-2 pr-4 font-semibold">Team</th>
+                  <th className="py-2 pr-4 font-semibold">HIGH</th>
+                  <th className="py-2 pr-4 font-semibold">MEDIUM</th>
+                  <th className="py-2 pr-4 font-semibold">NORMAL</th>
+                  <th className="py-2 pr-4 font-semibold">LOW</th>
+                  <th className="py-2 pr-4 font-semibold">Workload</th>
+                  <th className="py-2 pr-4 font-semibold">Remaining</th>
+                  <th className="py-2 pr-4 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workloadData.members.map((member) => (
+                  <tr
+                    key={member._id}
+                    className="border-b border-gray-100 align-top"
+                  >
+                    <td className="py-3 pr-4 font-semibold text-gray-800">
+                      {member.name}
+                    </td>
+                    <td className="py-3 pr-4 text-gray-600">
+                      {member.team?.name || "Unassigned"}
+                    </td>
+                    <td className="py-3 pr-4">{member.byPriority.high}</td>
+                    <td className="py-3 pr-4">{member.byPriority.medium}</td>
+                    <td className="py-3 pr-4">{member.byPriority.normal}</td>
+                    <td className="py-3 pr-4">{member.byPriority.low}</td>
+                    <td className="py-3 pr-4">
+                      {member.totalWorkload} / {member.maxWorkload}
+                    </td>
+                    <td className="py-3 pr-4">{member.remaining}</td>
+                    <td className="py-3 pr-4">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          member.status === "AVAILABLE"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : member.status === "NEAR_LIMIT"
+                              ? "bg-amber-100 text-amber-700"
+                              : member.status === "FULL"
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {member.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-500">
+            No workload data available for this project.
+          </p>
+        )}
       </section>
       <section className="mt-6 rounded-2xl bg-white p-6 shadow">
         <div className="flex items-center justify-between gap-3">
