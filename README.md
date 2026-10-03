@@ -1,263 +1,759 @@
 # Task Management System
 
-Technical and functional documentation for the implementation currently in this repository. The source code is authoritative where behavior differs from older notes or UI labels.
+This repository contains a full-stack task-management application for project-based work coordination, team organization, role-aware assignment, workload enforcement, and task lifecycle tracking. The implementation is a working Node.js + Express backend and a React + Vite frontend that are designed to operate together through a single API layer.
 
-## Contents
+The codebase is the source of truth for behavior. Where an earlier design note or UI label differs from runtime behavior, the implemented controllers, models, utilities, and tests take precedence.
 
-- [1. Project Overview](#1-project-overview)
-- [2. Core Domain Model](#2-core-domain-model)
-- [3. Roles and Permissions](#3-roles-and-permissions)
-- [4. Team Management](#4-team-management)
-- [5. Project Management and Project Leader](#5-project-management-and-project-leader)
-- [6. Task Management](#6-task-management)
-- [7. Project Workload and Task Allocation Control](#7-project-workload-and-task-allocation-control)
-- [8. Workload Window and Edge Cases](#8-workload-window-and-edge-cases)
-- [9. Workload Monitoring](#9-workload-monitoring)
-- [10. Task Assignment Validation](#10-task-assignment-validation)
-- [11. Assignment Date and Calendar Rules](#11-assignment-date-and-calendar-rules)
-- [12. Stages, Activities, and Subtasks](#12-stages-activities-and-subtasks)
-- [13. Task Assets](#13-task-assets)
-- [14. Notifications](#14-notifications)
-- [15. Authentication and Registration](#15-authentication-and-registration)
-- [16. Authorization and Security](#16-authorization-and-security)
-- [17. Dashboard and Task Views](#17-dashboard-and-task-views)
-- [18. Trash, Restore, and Deletion](#18-trash-restore-and-deletion)
-- [19. Dependencies and Scheduling Analysis](#19-dependencies-and-scheduling-analysis)
-- [20. Architecture and Repository Structure](#20-architecture-and-repository-structure)
-- [21. Database Models](#21-database-models)
-- [22. REST API Reference](#22-rest-api-reference)
-- [23. Environment Variables](#23-environment-variables)
-- [24. Local Development](#24-local-development)
-- [25. Docker](#25-docker)
-- [26. Development Workflow](#26-development-workflow)
-- [27. Testing](#27-testing)
-- [28. Current Limitations and Known Issues](#28-current-limitations-and-known-issues)
-- [29. Business Rules Summary](#29-business-rules-summary)
-- [30. Planned / Future Work](#30-planned--future-work)
+## Project overview
 
-## 1. Project Overview
+The system is designed for a structured organization with three primary layers:
 
-Task Management System is a web application for coordinating organizational users, cross-team projects, task assignment, work progress, and task dependencies. It addresses the need to separate organizational reporting lines from project delivery: teams group people, while projects define a specific body of work and its own leader and members.
+- Users and approval state
+- Teams and organizational membership
+- Projects and task execution
 
-The system is intended for administrators who configure users, teams, and projects; project leaders who distribute and monitor project work; and team members who receive tasks, update task progress, record activities, and work through subtasks.
+At a high level, the application allows admins to manage access and configuration, teams to group staff, projects to define work scopes, and project leaders to distribute tasks while enforcing assignment constraints.
 
-Tasks may be standalone or associated with a project. Project tasks have one current assignee and are constrained by project membership and workload checks. A task can also contain embedded activities and checklist subtasks, and can participate in Finish-to-Start dependencies with other tasks in the same project.
+Key functional areas implemented in this repo:
 
-Authentication uses email/password or the frontend Google sign-in flow. Successful normal logins receive a JWT in an HTTP-only cookie. API routes apply server-side authentication and authorization; the frontend's route guards are for navigation and are not the security boundary.
+- User authentication and approval flow
+- Google sign-in flow via Firebase client integration
+- Admin-only administration screens for users and teams
+- Team creation and membership updates
+- Project creation and project-member validation
+- Task creation, reassignment, completion, and deletion
+- Subtask and activity tracking
+- Task dependencies and scheduling analysis
+- Workload and priority-based assignment rules
+- Project filtering, dashboard summaries, and trash/restore behavior
 
-## 2. Core Domain Model
+## Technology stack
 
-```mermaid
-graph TD
-    Admin[Admin / system administrator] --> Users[Users]
-    Admin --> Teams[Teams]
-    Admin --> Projects[Projects]
-    Teams --> TeamLeader[Team Leader]
-    Teams --> TeamMembers[Organizational members]
-    Projects --> ProjectLeader[One Project Leader]
-    Projects --> ProjectMembers[Explicit Project Members]
-    ProjectMembers --> Tasks[Project Tasks]
-    Tasks --> Subtasks[Embedded Subtasks]
-    Tasks --> Activities[Embedded Activities]
-    Tasks --> Notices[Assignment-related Notifications]
-    Tasks --> Dependencies[TaskDependency documents]
-```
+### Frontend
 
-- **Admin:** system-level account with the `isAdmin` flag; administers users, teams, and projects. Admin is not intended to be a team member.
-- **User:** account with a global role, approval/activation state, and optional team reference.
-- **Team:** organizational grouping with one Team Leader and members. It is not the project task-allocation boundary.
-- **Project:** body of work, with an owner, one project-specific leader, participating teams, explicit members, lifecycle status, and date fields.
-- **Project Leader:** the user referenced by `Project.projectLeader`. This is a project relationship, not a separate global role.
-- **Project Member:** a user explicitly listed in `Project.members`; project members may represent multiple participating teams.
-- **Task:** individual work item, optionally linked to a project, with one current assignee, creator, priority, stage, dates, embedded activity history and subtasks.
-- **TaskDependency:** separate document representing a directed Finish-to-Start relationship between tasks.
-- **Notice:** notification document addressed to one or more users with per-user read tracking.
+- React
+- Vite
+- Redux Toolkit
+- RTK Query
+- Tailwind CSS
+- React Router DOM
+- Firebase Authentication for Google login
+- Sonner for notifications
 
-The distinction between the two organizational concepts is central:
+### Backend
+
+- Node.js
+- Express
+- MongoDB with Mongoose
+- JWT-based authentication
+- bcryptjs for password hashing
+- Cookie-based session handling
+
+### Infrastructure and tooling
+
+- Docker Compose
+- Dockerfiles for frontend and backend
+- Node test runner for server-side validation tests
+
+## Repository structure
 
 ```text
-Team   = organizational membership
-Project = delivery scope, project leader, project membership, project tasks
+.
+├── README.md
+├── docker-compose.yml
+├── client/
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.js
+│   ├── vite.config.js
+│   └── src/
+│       ├── App.jsx
+│       ├── assets/
+│       ├── components/
+│       ├── pages/
+│       ├── redux/
+│       └── utils/
+├── server/
+│   ├── Dockerfile
+│   ├── index.js
+│   ├── package.json
+│   ├── controllers/
+│   ├── middlewares/
+│   ├── models/
+│   ├── routes/
+│   ├── scripts/
+│   ├── tests/
+│   └── utils/
+└── .gitignore
 ```
 
-## 3. Roles and Permissions
+## Runtime architecture
 
-The `User.role` enum is `ADMIN`, `TEAM_LEADER`, `ASSOCIATE`, `JUNIOR`, or `INTERN`. Separately, `User.isAdmin` is a boolean checked by administrator middleware. Backend checks generally use `isAdmin`; a role label alone should not be treated as proof of administrative authority.
+The app follows a layered architecture:
 
-| Role          | Organizational meaning                                                                | Team membership                                                                                                              | Can be Project Leader?                                                                                                                        | Task receipt and delegation rules                                                                                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ADMIN`       | System administration role; normal admin authority is represented by `isAdmin: true`. | Admin accounts are excluded from the unassigned list and `role: ADMIN` is rejected by the team-members update controller.    | The participant validator does not prohibit an approved active admin from being a project member/leader; project leader is not a global role. | An admin can create project tasks only for that project's leader through the create-task controller. Standalone delegation is restricted by the hierarchy helper to a Team Leader who has a team. Admin deletion and duplicate permissions are broader. |
-| `TEAM_LEADER` | Leads one organizational team.                                                        | Created as the unique leader of a team and included in that team's member list. Cannot be moved by the move-member endpoint. | Yes, if approved, active, and included as a project member.                                                                                   | Can receive tasks. In standalone delegation, may delegate to lower-ranked users in the same team. Project delegation follows project membership and project-specific delegation rules.                                                                  |
-| `ASSOCIATE`   | Organizational contributor above Junior and Intern in the delegation hierarchy.       | May be a team member.                                                                                                        | Yes, if approved, active, and included as a project member.                                                                                   | Can receive tasks; can delegate to Junior or Intern under the standalone same-team rule or when both users are project members in the same project.                                                                                                     |
-| `JUNIOR`      | Organizational contributor above Intern in the delegation hierarchy.                  | May be a team member.                                                                                                        | Yes, if approved, active, and included as a project member.                                                                                   | Can receive tasks; can delegate to Intern under the applicable same-team or project-membership rule.                                                                                                                                                    |
-| `INTERN`      | Entry-level organizational contributor in the delegation hierarchy.                   | May be a team member.                                                                                                        | Yes, if approved, active, and included as a project member.                                                                                   | Can receive tasks; cannot delegate to a lower role under the implemented hierarchy.                                                                                                                                                                     |
+1. Frontend UI layer
+   - route-based pages in `client/src/pages`
+   - reusable components in `client/src/components`
+   - Redux slices and RTK Query endpoints in `client/src/redux`
 
-Project Leader authority overlays the user's global role. The project task delegation utility permits a project leader to delegate to non-Admin project members; a non-leader Associate can delegate to a Junior or Intern project member, and a non-leader Junior can delegate to an Intern project member. Self-assignment is accepted only for the Project Leader. These checks do not make a Team Leader automatically a Project Leader.
+2. API layer
+   - backend Express app mounted under `/api`
+   - routes are grouped in `server/routes`
 
-| Action                           |                                                              Admin (`isAdmin`) |                     Project Leader |                                  Team Leader |                                    Associate |                                       Junior |                                       Intern |
-| -------------------------------- | -----------------------------------------------------------------------------: | ---------------------------------: | -------------------------------------------: | -------------------------------------------: | -------------------------------------------: | -------------------------------------------: |
-| Create user / approve users      |                                                                            Yes |                                 No |                                           No |                                           No |                                           No |                                           No |
-| Create or administer teams       |                                                                            Yes |                                 No |                                           No |                                           No |                                           No |                                           No |
-| Create project                   |                                                                            Yes |                                 No |                                           No |                                           No |                                           No |                                           No |
-| Manage project metadata          |                                                                            Yes |               Yes, for own project |                 No, unless also owner/leader |                 No, unless also owner/leader |                 No, unless also owner/leader |                 No, unless also owner/leader |
-| View project                     |                                                                   All projects |                        Own project |           Depends on project/team visibility |        Depends on membership/team visibility |        Depends on membership/team visibility |        Depends on membership/team visibility |
-| Create project task              |                              Admin create path; target is the project's leader |      Yes, subject to project rules |                  Only if also project leader |                  Only if also project leader |                  Only if also project leader |                  Only if also project leader |
-| Delegate project task            | Only to project leader in create path; delegate endpoint applies its own check | To valid non-Admin project members |                        Role/member-dependent |             To Junior/Intern project members |                    To Intern project members |                                           No |
-| Create standalone task           |             Hierarchy check still applies; target must satisfy standalone rule |       No special project authority |                 Hierarchy and same-team rule |                 Hierarchy and same-team rule |                 Hierarchy and same-team rule |                 No lower role to delegate to |
-| Access task detail/edit/activity |                                                                            Yes |               Tasks in led project | Only if assignee, unless also project leader | Only if assignee, unless also project leader | Only if assignee, unless also project leader | Only if assignee, unless also project leader |
-| Delete project task              |                                                                            Yes |               Yes, for own project |               No, unless also Project Leader |                                           No |                                           No |                                           No |
-| Delete project                   |                                                                            Yes |                                 No |                                           No |                                           No |                                           No |                                           No |
+3. Controller layer
+   - request handling and validation logic in `server/controllers`
 
-The table summarizes role-based paths, not every combination of overlapping relationships. For example, a user who is both an assignee and a Project Leader receives the permissions from both relationships. Actual assignment checks are described in [Task Assignment Validation](#10-task-assignment-validation).
+4. Domain and utility layer
+   - schemas and validation in `server/models` and `server/utils`
 
-## 4. Team Management
+5. Security layer
+   - JWT + middleware checks in `server/middlewares/authMiddlewave.js`
 
-Teams are created by an administrator with a name and one user whose role is `TEAM_LEADER`, whose account is approved and active, and who is not already assigned to a team. The new leader is set as both `Team.leader` and a member, and the user's `team` field is updated.
+## Core domain model
 
-Team membership is represented in both `User.team` and `Team.members`. The team management UI supports assigning/removing members and moving eligible members between teams. The move-member endpoint accepts `ASSOCIATE`, `JUNIOR`, and `INTERN`; Team Leaders and Admin-role users cannot be moved through that endpoint. A team must have exactly one Team Leader; additional Team Leaders cannot be added as ordinary members.
+### User
 
-Administrators can see all teams plus an unassigned-member list. That list contains approved, active users with no team and excludes `isAdmin` users and `role: ADMIN`. Admin is a system-level account, not an organizational team member. The member-update controller also rejects the `ADMIN` role. Team creation requires an active leader. Note that the member-update lookup checks approval but does not include `isActive` in its database query, despite returning an error message that says members must be active; see limitations.
+The user model is defined in `server/models/user.js`. It stores the user account and approval state.
 
-Visibility:
+Important fields include:
 
-- Admins can list all teams and eligible unassigned members.
-- A Team Leader sees their own team only when they are the recorded leader.
-- A non-admin team member sees their own team only when the team contains them.
-- A non-admin without a team receives an empty team list.
-- The user-list API returns approved users visible under the same organizational rules; it is distinct from the team-record API.
+- `name`
+- `email`
+- `password`
+- `title`
+- `role`
+- `team`
+- `technicalRoles`
+- `isAdmin`
+- `isActive`
+- `status`
+- `googleAuth`
 
-Only admins can create/delete teams, update membership, or use the move-member API. Deletion is rejected if the team is referenced by any project or if non-leader member references remain. On successful deletion, the leader's `User.team` is cleared. Membership and deletion updates are not wrapped in MongoDB transactions.
+The schema includes password hashing via `bcryptjs` and normalizes names and emails before validation.
 
-## 5. Project Management and Project Leader
+### Team
 
-Projects are the primary work-management unit and are not limited to one Team. The Project stores participating Team references and a separate explicit `members` array. Its Project Leader may lead project work with members from any participating team.
+A team is an organizational container with:
 
-```text
-Project A
-├── Project Leader
-├── Associate A — Team A
-├── Junior B    — Team B
-├── Intern C    — Team C
-└── Associate D — Team D
+- `name`
+- `leader`
+- `members`
+
+The leader is required to be an approved, active user, and the team membership is synchronized in the user records.
+
+### Project
+
+The project model in `server/models/project.js` stores:
+
+- `name`
+- `description`
+- `owner`
+- `projectLeader`
+- `teams`
+- `members`
+- `status`
+- `plannedStart`
+- `plannedDeadline`
+- `actualStart`
+- `actualCompletion`
+
+A project may include multiple teams while still retaining a single project leader and an explicit project member list.
+
+### Task
+
+The task model in `server/models/task.js` is the core delivery artifact. It supports:
+
+- assignee and creator references
+- priority and stage
+- planned and actual dates
+- project linking
+- subtasks and activity history
+- soft delete via `isTrashed`
+- optional dependency references and duplicate lineage
+
+## Role system and permissions
+
+The app separates three concepts:
+
+- `isAdmin`: system-level administrative authority
+- `role`: organizational role label
+- `projectLeader`: project-specific leadership assignment
+
+The role definitions are centralized in `server/utils/roles.js`.
+
+### Role values
+
+The implemented role model is based on organizational hierarchy values such as:
+
+- `ADMIN`
+- `TEAM_LEADER`
+- `ASSOCIATE`
+- `JUNIOR`
+- `INTERN`
+
+The app also enforces assignment-related rules in helper functions such as:
+
+- `normalizeRole`
+- `canDelegateTo`
+- `validateAssignmentTarget`
+
+These utilities decide whether a user can delegate or receive a task based on role and team/project membership.
+
+### Important rule: admin assignment is blocked at the server layer
+
+The application explicitly prevents admin users from being assigned to tasks. This is implemented in:
+
+- `server/utils/roles.js`
+- `server/utils/taskAccess.js`
+- relevant controller checks in task creation/delegation flows
+
+This is a critical business rule: frontend filtering helps UX, but server-side enforcement is the actual authority.
+
+## Authentication and login flow
+
+Authentication is handled by the backend and uses JWT plus cookie-based storage.
+
+### Routes
+
+Routes for user actions are mounted in `server/routes/index.js` and `server/routes/userRoutes.js`.
+
+Primary auth endpoints include:
+
+- `POST /api/user/register`
+- `POST /api/user/create` (admin-only account creation)
+- `POST /api/user/login`
+- `POST /api/user/logout`
+- `POST /api/user/google`
+- `PUT /api/user/profile`
+- `PUT /api/user/change-password`
+
+### Login behavior
+
+The login flow verifies:
+
+- email exists
+- password matches the stored hash
+- user is active and approved
+- any admin or access rules are respected
+
+On success, the backend creates a JWT and sends it in a cookie. The frontend stores the user payload in Redux local storage via `authSlice`.
+
+### Google sign-in
+
+The frontend uses Firebase Google provider in `client/src/utils/firebase.js`.
+
+The Google sign-in sequence:
+
+1. User clicks Google sign-in in the login page.
+2. Firebase returns a Google user profile.
+3. The frontend sends `{ name, email, title, role, googleAuth }` to `/api/user/google`.
+4. The server validates the input, creates a pending account if needed, or logs in an existing approved user.
+5. Pending Google-created users wait for admin approval.
+
+## Authorization model
+
+Authorization is enforced primarily in backend middleware, not only in the UI.
+
+Relevant middleware:
+
+- `protectRoute`
+- `isAdminRoute`
+- task and project access checks
+
+These guards are implemented in `server/middlewares/authMiddlewave.js`.
+
+### Admin-only paths
+
+The following actions are restricted to admin users:
+
+- create/delete teams
+- approve or reject user accounts
+- delete users
+- create projects
+- delete projects
+- create duplicate tasks
+- multiple project-level admin workflows
+
+### Non-admin access rules
+
+Project/task access depends on:
+
+- project membership
+- project leader status
+- team membership
+- assignee relationship
+- task visibility rules
+
+The UI route guards in `client/src/App.jsx` provide navigation restrictions but should not be understood as the security boundary. The server is authoritative.
+
+## Team management
+
+Team operations are handled from `server/controllers/teamController.js`.
+
+### Team creation
+
+A team can be created only by an admin. The process requires:
+
+- a valid team name
+- a valid team leader
+- active and approved user status
+- the leader is not already assigned to another team
+
+After creation:
+
+- the leader is added to the team membership list
+- the user record `team` is updated
+- the leader remains the single team leader
+
+### Team member updates
+
+The system supports:
+
+- adding/removing team members
+- moving a user from one team to another
+- preventing invalid `ADMIN` role assignments to team membership
+
+The implementation explicitly excludes admin users from normal team assignment flows.
+
+## Project management
+
+Project operations are coordinated in `server/controllers/projectController.js` and `server/models/project.js`.
+
+### Project lifecycle
+
+A project includes:
+
+- owner
+- project leader
+- participating teams
+- explicit project members
+- lifecycle status such as planning/active/completed/archived
+
+### Project member validation
+
+Project participants are validated before creation/update. The system checks:
+
+- owner is approved and active
+- project leader is approved and active
+- project leader is included in project members
+- teams exist and are valid
+- members are valid and approved
+- explicit project members belong to participating teams or are the owner
+
+### Project visibility
+
+Project visibility is derived from a combination of:
+
+- admin access
+- owner access
+- project leader relationship
+- explicit project membership
+- team membership
+
+This visibility is not automatically equivalent to task-level visibility. Task access is still enforced independently.
+
+## Task system
+
+The task domain is implemented in `server/models/task.js`, `server/controllers/taskController.js`, and the utility modules under `server/utils`.
+
+### Task fields and values
+
+Task properties include:
+
+- `title`
+- `description`
+- `keywords`
+- `requiredTechnicalRoles`
+- `requiredLevel`
+- `exactLevelOnly`
+- `roleMatchMode`
+- `assignee`
+- `createdBy`
+- `project`
+- `parentTask`
+- `priority`
+- `stage`
+- `date`
+- `plannedStartDate`
+- `dueDate`
+- `estimatedDuration`
+- `subTasks`
+- `activities`
+- `isTrashed`
+
+### Task stages
+
+The app tracks task progression through stages such as:
+
+- `todo`
+- `in progress`
+- `completed`
+
+Stage transitions are validated by backend logic so that actions like completion cannot bypass the expected lifecycle rules.
+
+### Task creation and delegation
+
+The system supports:
+
+- standalone task creation
+- project-linked task creation
+- task reassignment
+- task duplication
+- task deletion and trash/restore flows
+
+Delegation logic considers:
+
+- role hierarchy
+- project membership
+- task requirements
+- workload limits
+- admin restrictions
+
+## Skills, technical roles, and task matching
+
+Task eligibility is richer than a simple assignee check. The app has task access utilities in `server/utils/taskAccess.js`.
+
+This system evaluates:
+
+- required technical roles for the task
+- user technical role match
+- skill compatibility
+- project-member eligibility
+- target role validity
+- exact-level or range-based level constraints
+
+### Role match mode
+
+The task model supports matching logic such as:
+
+- `ANY`
+- `ALL`
+- exact-level constraints
+
+This is intended to support role-sensitive assignment scenarios where a task requires a broader or narrower skill fit.
+
+## Workload system
+
+Workload logic is implemented in `server/utils/workload.js` and is central to assignment validation.
+
+### Workload calculation
+
+The app calculates project workload with a rolling time window. The current logic includes:
+
+- project-specific tasks only
+- assignee-specific accumulation
+- weighted priority points
+- hard-count limits for HIGH and MEDIUM work
+- a maximum total workload threshold of 20 points per member
+
+### Priority weight table
+
+| Priority | Weight | Hard count rule           |
+| -------- | -----: | ------------------------- |
+| HIGH     |      5 | max 1 active-window task  |
+| MEDIUM   |      3 | max 3 active-window tasks |
+| NORMAL   |      2 | no hard count cap         |
+| LOW      |      1 | no hard count cap         |
+
+The app rejects new assignment requests if projected workload exceeds the allowed limit or if hard count caps are exceeded.
+
+### Workload status
+
+The dashboard and assignment views use workload thresholds for status labels:
+
+- `AVAILABLE`
+- `NEAR_LIMIT`
+- `FULL`
+- `OVERLOADED`
+
+These states are derived from the ratio of current workload to the project threshold.
+
+## Scheduling and dependencies
+
+Task dependency implementation is in `server/utils/taskDependencies.js` and `server/models/taskDependency.js`.
+
+### Dependency rules
+
+The app models task sequencing with finish-to-start relationships. A task can depend on earlier tasks, and the system validates whether dependencies are acceptable before allowing state transitions or completions.
+
+### Scheduling analysis
+
+The frontend includes a scheduling analysis page for project planning and work sequence review. This carries the project and task dependency information into a visual schedule-oriented page.
+
+## Notification system
+
+The notification model is in `server/models/notification.js` and the API is exposed through user routes.
+
+Users can:
+
+- fetch notifications
+- mark notifications as read
+- receive task assignment and task-related notices
+
+Notifications are a core part of the assignment workflow and keep users informed when tasks are assigned or updated.
+
+## Data validation
+
+Validation is not just frontend-only. The backend includes centralized validation utilities in `server/utils/validation.js`.
+
+These validators cover things like:
+
+- name validation
+- email normalization and checking
+- task keyword validation
+- assignment target validation
+
+This matters because the backend is the actual enforcement layer; UI checks are only a convenience measure.
+
+## API structure
+
+The backend is mounted on `/api` with route grouping under `server/routes/index.js`.
+
+### Main route prefixes
+
+- `/api/user`
+- `/api/task`
+- `/api/team`
+- `/api/project`
+
+### Notable route categories
+
+#### User
+
+- register and login
+- approval workflows
+- profile editing
+- password change
+- notification retrieval
+- Google auth handling
+
+#### Task
+
+- create/update/delete/trash/restore
+- task detail access
+- dependency and subtasks management
+- activity posting
+- assignment/delegation actions
+
+#### Team
+
+- team creation
+- member adding/removing
+- team movement actions
+- delete team
+
+#### Project
+
+- create project
+- fetch project details
+- workload analysis
+- project member validation
+- scheduling overview
+
+## Frontend architecture
+
+The client is organized around reusable UI components and route-based pages.
+
+### Main pages
+
+- Login
+- Dashboard
+- Tasks
+- ProjectDetails
+- Projects
+- Teams
+- Users
+- SchedulingAnalysis
+- TaskDetails
+- Trash
+
+### Redux state
+
+State is split into:
+
+- `auth` slice for user profile and UI sidebar state
+- RTK Query API slice for network requests
+
+The app stores the user object in local storage after successful login, which is then loaded during page initialization.
+
+## Docker and deployment
+
+The repo includes Docker configuration for both services.
+
+### Docker Compose
+
+`docker-compose.yml` defines:
+
+- frontend service on port `3000` mapped to Nginx port `80`
+- backend service on port `8800`
+- backend loads environment variables from `./server/.env`
+
+### Dockerfiles
+
+- `client/Dockerfile` builds a production frontend bundle and serves it with nginx
+- `server/Dockerfile` installs Node dependencies and runs the backend with `npm start`
+
+## Environment variables
+
+A production or local `.env` file should exist in the server directory. The project expects values such as:
+
+```env
+PORT=8800
+MONGO_URI=mongodb://localhost:27017/taskmanager
+JWT_SECRET=your_jwt_secret
+CLIENT_URL=http://localhost:3000
 ```
 
-Project fields include `name`, `description`, `owner`, `projectLeader`, `teams`, `members`, `status`, planned start/deadline, and actual start/completion. Status values are `planning`, `active`, `completed`, and `archived`.
+The frontend reads the API base URL from `VITE_APP_BASE_URL` or falls back to `/api`.
 
-Project creation is Admin-only. The owner is set to the authenticated administrator. Participant validation requires an approved, active owner; existing participating teams; approved, active members; and an approved, active Project Leader who is also an explicit project member. Members must belong to one of the participating teams or be the owner. The owner exception permits the project owner to participate without team membership. Team membership by itself does not make someone eligible to receive a project task: the assignee must be in the explicit project member list.
+The Firebase client configuration also reads values from Vite env variables such as:
 
-The Admin or current Project Leader can update project metadata and participants. The owner can also manage project metadata according to `canManageProject`. When a non-Admin owner who is not the Project Leader edits, the controller preserves the project's teams and existing members from other teams and constrains requested membership changes to that user's team. The Project Leader can distribute work across the project's explicit members regardless of their home team, subject to delegation and workload checks.
+- `VITE_APP_FIREBASE_API_KEY`
+- `VITE_API_URL`
 
-Project visibility allows Admin, owner, Project Leader, explicit project member, or user belonging to one of the project's teams. This visibility does not automatically grant access to every task. For non-admin/non-leader project detail responses, task results are filtered by assignee; Team Leaders receive tasks assigned to visible team members. Task detail middleware permits only Admin, current assignee, or Project Leader, not project owner by owner status alone.
+No `.env.example` file is included in the repository at the moment, so environment setup is currently project-specific and should be created locally before running the app.
 
-Project deletion is Admin-only and permanently removes the project tasks, task dependencies involving those tasks, related notices, user task references, and parent-task references. There is no soft-archive operation in the controller despite the UI/API name `archiveProject`; it performs permanent deletion.
+## Local development setup
 
-### Project Leader versus Team Leader
+### 1. Install backend dependencies
 
-A Team Leader represents the user's organizational team relationship. A Project Leader is a field on an individual Project. A person can lead a project without being a Team Leader, and being a Team Leader alone does not grant project task deletion or project task management. Project leadership is validated per project and requires explicit project membership.
-
-## 6. Task Management
-
-A Task has one current assignee, one creator, an optional project, an optional parent task, a priority, a stage, assignment/schedule dates, embedded activities, and embedded subtasks. Project tasks are assigned only to explicit project members. Standalone tasks continue to use the organizational role/team delegation hierarchy.
-
-The task UI includes a board view, list view, stage-filtered routes, task detail, status actions, activity/timeline, dependency management, and a subtask checklist. The Admin can create standalone tasks from the general Tasks page. Admins and Project Leaders have a Create Task action in eligible project details. Task editing is available from task controls, but backend task access rules still apply.
-
-Task lifecycle operations:
-
-- **Create:** backend derives the assignment timestamp; validates project membership/authority and, for project tasks, workload limits.
-- **Assign/reassign:** the current assignee is a single User reference. Delegation changes the assignee, refreshes the assignment timestamp, records an `assigned` activity, and creates a notice for the new assignee.
-- **Edit:** updates title, priority, stage, planned/due dates, estimated duration, and actual date values. It does not accept or change the assignment date. A requested stage change is validated by the transition utility.
-- **Complete:** the task must be in `in progress`; predecessor tasks must be complete. The completion timestamp is recorded if missing.
-- **Trash/restore/delete:** see [Trash, Restore, and Deletion](#18-trash-restore-and-deletion).
-- **Duplicate:** Admin-only. Copies the task's core fields, legacy assets and subtasks, links it to the source through `parentTask`, and gives the duplicate a new server-generated assignment date. The duplicate endpoint does not run workload allocation validation.
-
-Task model fields:
-
-| Field                                     | Purpose                                                                       |
-| ----------------------------------------- | ----------------------------------------------------------------------------- |
-| `title`                                   | Required task title.                                                          |
-| `createdBy`                               | Required reference to creator User.                                           |
-| `assignee`                                | Required reference to one current assignee User.                              |
-| `project`                                 | Optional Project reference; indexed.                                          |
-| `parentTask`                              | Optional Task reference for duplicate/delegation lineage, not a dependency.   |
-| `date`                                    | Assignment timestamp; backend sets it on create, duplicate, and reassignment. |
-| `plannedStartDate`, `dueDate`             | Optional planned schedule dates.                                              |
-| `estimatedDuration`                       | Optional positive numeric working-day duration.                               |
-| `actualStartDate`, `actualCompletionDate` | Optional lifecycle timestamps.                                                |
-| `priority`                                | `high`, `medium`, `normal`, or `low`; defaults to `normal`.                   |
-| `stage`                                   | `todo`, `in progress`, or `completed`; defaults to `todo`.                    |
-| `activities`                              | Embedded event/comment records.                                               |
-| `subTasks`                                | Embedded title/completed checklist records.                                   |
-| `assets`                                  | Legacy string array; no user-facing Add Asset functionality remains.          |
-| `isTrashed`                               | Soft-delete flag; defaults to `false`.                                        |
-| `createdAt`, `updatedAt`                  | Mongoose timestamps.                                                          |
-
-## 7. Project Workload and Task Allocation Control
-
-Project task assignment has two separate server-enforced checks: hard counts for HIGH/MEDIUM priority and a weighted workload capacity for every priority. These rules apply to project task creation and delegation. They are not just frontend warnings.
-
-The configuration in `server/utils/workload.js` is:
-
-| Priority | Workload points per task | Hard count limit within the window |
-| -------- | -----------------------: | ---------------------------------: |
-| HIGH     |                        5 |                                  1 |
-| MEDIUM   |                        3 |                                  3 |
-| NORMAL   |                        2 |                               None |
-| LOW      |                        1 |                               None |
-
-The maximum workload is **20 points per project member per project** in the active allocation window. There is no fixed count ceiling for NORMAL or LOW, but both contribute to the 20-point limit. HIGH and MEDIUM also contribute points in addition to their hard count restrictions.
-
-For a project member, eligible workload is calculated as:
-
-```text
-Current Workload = sum(weight(priority(task)))
-                   for eligible tasks in this project/window/member
-
-Projected Workload = Current Workload + weight(new task priority)
+```bash
+cd server
+npm install
 ```
 
-An assignment is rejected if the new HIGH count would exceed 1, the new MEDIUM count would exceed 3, or the projected weighted workload would exceed 20. Exactly 20 points is allowed. The hard count rule is checked first; if it fails, that is the reported rejection reason.
+### 2. Install frontend dependencies
 
-Examples:
-
-```text
-1 HIGH + 3 MEDIUM + 4 NORMAL + 1 LOW
-= 5 + 9 + 8 + 1
-= 23 points  -> over capacity (also exceeds the point ceiling)
-
-3 MEDIUM + 5 NORMAL + 1 LOW
-= 9 + 10 + 1
-= 20 points  -> allowed, assuming no other active-window tasks
+```bash
+cd ../client
+npm install
 ```
 
-The dashboard status thresholds are based on `totalWorkload / 20`:
+### 3. Configure environment variables
 
-| Status       | Threshold                               |
-| ------------ | --------------------------------------- |
-| `AVAILABLE`  | Zero workload or below 60% of capacity. |
-| `NEAR_LIMIT` | At least 60% and below 86%.             |
-| `FULL`       | At least 86% and below 100%.            |
-| `OVERLOADED` | At or above 100%.                       |
+Create a local `server/.env` file with the required MongoDB and JWT configuration.
 
-An assignment can be accepted when the projected total is exactly capacity (20). A later overview may label that existing total `OVERLOADED` because status uses `ratio >= 1`; `FULL` means the interval from 86% up to but not including 100%.
+### 4. Start backend
 
-## 8. Workload Window and Edge Cases
+```bash
+cd server
+npm start
+```
 
-The allocation window is rolling, not a calendar month or fixed fortnight. The start boundary is calculated by subtracting `allocationPeriodDays` (15) from the current server date using JavaScript `Date.setDate`; an assignment timestamp is counted if it is greater than or equal to that boundary and less than or equal to `now`.
+### 5. Start frontend
 
-The window date is selected by `getLatestAssignmentDate`:
+```bash
+cd client
+npm run dev
+```
 
-1. Use the most recent valid activity whose type is `assigned`.
-2. If there is no valid `assigned` activity date, fall back to `Task.date`.
-3. If neither exists or the date is invalid, exclude the task.
+The frontend commonly targets the Vite development server on port 5173, while the backend listens on its configured port (for example 8800).
 
-A counted task must match the project and assignee, be inside the window, and not be trashed. All stages count, including completed tasks. Overdue status does not remove a task from allocation; the overview separately counts overdue tasks only when the task is not completed and its due date is before now.
+## Docker workflow
 
-Consequences of the current implementation:
+To run the project in containers:
 
-- **Reassignment:** delegation changes the current assignee and refreshes `Task.date`; it also appends an `assigned` activity. The workload calculation uses the latest assignment activity for window placement. The old assignee no longer owns the task for current workload because there is one current `assignee` field.
-- **Completed tasks:** still consume workload while their latest assignment date remains in the window.
-- **Trashed tasks:** excluded.
-- **Restored tasks:** eligible again if the current assignee/project and assignment date still meet the window test.
+```bash
+docker compose up --build
+```
+
+This starts both services with the configured Dockerfiles and port mappings.
+
+## Testing
+
+The backend includes a testing suite under `server/tests`.
+
+Examples of test areas include:
+
+- task status flow
+- task access
+- project access
+- scheduling rules
+- team membership
+- workload validation
+- subtasks
+- task assignment dates
+- dependency validation
+- CPM logic
+
+A typical backend verification command is:
+
+```bash
+cd server
+node --test tests/*.test.mjs
+```
+
+These tests are important for preventing regression in assignment logic, authorization boundaries, workload checks, and task state transitions.
+
+## Security and validation notes
+
+This project is built around stricter backend validation and business rules. The main safety principle is:
+
+- frontend validation is useful for UX
+- server-side validation is authoritative
+
+The codebase explicitly guards against:
+
+- assignment of admin users to tasks
+- invalid role values
+- invalid names/emails
+- missing project member constraints
+- invalid task keyword lists
+- invalid task assignments outside team/project rules
+
+## Known limitations and design notes
+
+This repository is a working project rather than a production-grade SaaS platform, and some limitations are visible in the code:
+
+- some validation paths are still inconsistent across older endpoints and may rely on legacy assumptions
+- team/project/member visibility logic is nuanced and sometimes dependent on multiple sources of truth
+- some write operations are not wrapped in MongoDB transactions
+- the project includes both frontend route guards and server-side checks, and the UI should not be treated as the sole enforcement mechanism
+- the repo currently does not include a full example `.env` file in source control
+
+These are not blockers for the project’s core functionality, but they are important to understand when extending the system.
+
+## Business rules summary
+
+The implemented app enforces several high-value rules:
+
+- Admin accounts are not normal assignment targets.
+- Only approved, active users can participate in project and team workflows.
+- Project tasks require explicit project membership.
+- Workload caps are calculated and enforced on the backend.
+- Team leaders are distinct from project leaders.
+- Task completion and reassignment follow state-based validation rules.
+- Dependency operations are restricted to valid task relationships.
+- Soft-deleted tasks are treated differently from deleted tasks.
+
+## Future enhancements
+
+The current codebase leaves room for improvements such as:
+
+- a clearer central permission matrix
+- transaction wrapping for multi-document writes
+- stricter environment example files and deployment config
+- richer audit logs and activity classification
+- advanced dashboard analytics and export features
+- role-based API permissions cleanup and documentation generation
+
+## Conclusion
+
+This repository is a full-stack collaborative task-management system built around real organizational constraints, not just a simple Kanban board. It combines a React frontend, Express/Mongoose backend, authentication, team and project logic, assignment restrictions, workload enforcement, dependencies, and dashboards into one application.
+
+The implementation is especially strong in the areas of:
+
+- role-aware assignment rules
+- server-side validation and access checks
+- workload enforcement
+- task lifecycle control
+- team/project hierarchy modeling
+
+For this project, the code under `server` and `client/src` is the authoritative reference, and the backend middleware and utilities should be treated as the final source of policy decisions.
+
 - **Normal/low count:** there is no independent count limit, only the weighted cap.
 - **Duplicate:** creates a fresh assignment date but does not validate workload before creation. This is an implementation gap.
 
