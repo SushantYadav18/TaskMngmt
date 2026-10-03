@@ -127,6 +127,14 @@ function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
           <Route
+            path="/users"
+            element={
+              <AdminRoute>
+                <Users />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/projects/:id/scheduling"
             element={<SchedulingAnalysis />}
           />
@@ -158,6 +166,7 @@ function App() {
           <Route path="todo/:todo" element={<Tasks />} />
           <Route path="team" element={<Teams />} />
           <Route path="teams" element={<Teams />} />
+          <Route path="users" element={<Users />} />
           <Route path="pending-users" element={<Users pendingOnly />} />
           <Route path="trashed" element={<Trash />} />
           <Route path="task/:id" element={<TaskDetails />} />

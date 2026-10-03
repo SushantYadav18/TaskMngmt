@@ -11,12 +11,17 @@ import { useDispatch } from "react-redux";
 import { useCreateUserMutation } from "../redux/slices/api/userApiSlice";
 import { useUpdateUserMutation } from "../redux/slices/api/userApiSlice";
 import { setCredentials } from "../redux/slices/authSlice";
+import { validateEmail, validateName } from "../utils/validation";
+import { TECHNICAL_ROLE_VALUES } from "../utils/taskAccessConfig";
 
 const ROLE_OPTIONS = ["ADMIN", "TEAM_LEADER", "ASSOCIATE", "JUNIOR", "INTERN"];
 
 const AddUser = ({ open, setOpen, userData }) => {
   const defaultValues = userData ?? {};
   const { user } = useSelector((state) => state.auth);
+  const [technicalRoles, setTechnicalRoles] = React.useState(
+    defaultValues.technicalRoles || [],
+  );
 
   const {
     register,
@@ -30,9 +35,14 @@ const AddUser = ({ open, setOpen, userData }) => {
 
   const handleOnSubmit = async (data) => {
     try {
+      const payload = {
+        ...data,
+        ...(user?.isAdmin ? { technicalRoles } : {}),
+      };
+
       if (userData) {
         const result = await updateUser({
-          ...data,
+          ...payload,
           _id: userData._id,
         }).unwrap();
         toast.success(result.message || "User updated successfully!");
@@ -42,7 +52,7 @@ const AddUser = ({ open, setOpen, userData }) => {
         }
       } else {
         const result = await addNewUser({
-          ...data,
+          ...payload,
         }).unwrap();
         toast.success(result.message || "User added successfully!");
       }
@@ -75,6 +85,10 @@ const AddUser = ({ open, setOpen, userData }) => {
               className="w-full rounded"
               register={register("name", {
                 required: "Full name is required!",
+                validate: (value) => {
+                  const result = validateName(value);
+                  return result.valid || result.message;
+                },
               })}
               error={errors.name ? errors.name.message : ""}
             />
@@ -97,6 +111,10 @@ const AddUser = ({ open, setOpen, userData }) => {
               className="w-full rounded"
               register={register("email", {
                 required: "Email Address is required!",
+                validate: (value) => {
+                  const result = validateEmail(value);
+                  return result.valid || result.message;
+                },
               })}
               error={errors.email ? errors.email.message : ""}
             />
@@ -121,6 +139,39 @@ const AddUser = ({ open, setOpen, userData }) => {
                 </span>
               )}
             </div>
+
+            {user?.isAdmin && (
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-semibold text-gray-700">
+                  Technical Skills
+                </legend>
+                <p className="text-xs text-gray-500">
+                  These skills determine which task keywords this member can be
+                  assigned.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {TECHNICAL_ROLE_VALUES.map((role) => (
+                    <label
+                      key={role}
+                      className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2 text-sm text-gray-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={technicalRoles.includes(role)}
+                        onChange={() =>
+                          setTechnicalRoles((current) =>
+                            current.includes(role)
+                              ? current.filter((item) => item !== role)
+                              : [...current, role],
+                          )
+                        }
+                      />
+                      <span>{role.replaceAll("_", " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             {!userData && (
               <Textbox

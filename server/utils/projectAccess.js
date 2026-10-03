@@ -127,6 +127,9 @@ export const canWorkOnProjectTask = (project, assignee) => {
   return false;
 };
 
+export const canAdminAssignProjectTask = (source, target, project) =>
+  Boolean(source?.isAdmin && canWorkOnProjectTask(project, target));
+
 export const canDelegateProjectTask = (source, target, project) => {
   const sourceId = String(source._id || source.userId);
   const targetId = String(target._id || target.userId);

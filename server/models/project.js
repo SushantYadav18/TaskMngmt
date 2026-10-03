@@ -2,8 +2,24 @@ import mongoose, { Schema } from "mongoose";
 
 const projectSchema = new Schema(
   {
-    name: { type: String, required: true, trim: true },
-    description: { type: String, default: "", trim: true },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 120,
+      validate: {
+        validator(value) {
+          return (
+            /^[A-Za-z0-9À-ÖØ-öø-ÿ' .-]+$/.test(value.trim()) &&
+            /[A-Za-zÀ-ÖØ-öø-ÿ]/.test(value.trim())
+          );
+        },
+        message:
+          "Project name must include letters and only use letters, numbers, spaces, hyphens, apostrophes, and periods.",
+      },
+    },
+    description: { type: String, default: "", trim: true, maxlength: 2000 },
     owner: {
       type: Schema.Types.ObjectId,
       ref: "User",

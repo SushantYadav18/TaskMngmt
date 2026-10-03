@@ -39,3 +39,51 @@ export const canDelegateTo = (source, target) => {
 
   return DELEGATION_LEVEL[targetRole] > DELEGATION_LEVEL[sourceRole];
 };
+
+export const validateAssignmentTarget = ({
+  role,
+  isActive = true,
+  status = "approved",
+  allowAdmin = false,
+}) => {
+  const normalizedRole = normalizeRole(role);
+
+  if (!ROLE_VALUES.includes(normalizedRole)) {
+    return {
+      allowed: false,
+      reason: "invalid_role",
+      message: "Invalid role.",
+    };
+  }
+
+  if (!allowAdmin && normalizedRole === ROLES.ADMIN) {
+    return {
+      allowed: false,
+      reason: "admin_assignment_rejected",
+      message: "Admin users cannot be assigned tasks.",
+    };
+  }
+
+  if (isActive === false) {
+    return {
+      allowed: false,
+      reason: "inactive_member",
+      message: "The target user is not active and cannot be assigned tasks.",
+    };
+  }
+
+  if (status && String(status).toLowerCase() !== "approved") {
+    return {
+      allowed: false,
+      reason: "unapproved_member",
+      message: "Only approved users can be assigned tasks.",
+    };
+  }
+
+  return {
+    allowed: true,
+    role: normalizedRole,
+    reason: "valid",
+    message: "Assignment is valid.",
+  };
+};

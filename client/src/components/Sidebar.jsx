@@ -44,6 +44,12 @@ const linkData = [
     icon: <FaUsers />,
   },
   {
+    label: "Users",
+    link: "users",
+    icon: <FaUsers />,
+    adminOnly: true,
+  },
+  {
     label: "Projects",
     link: "projects",
     icon: <FaFolderOpen />,

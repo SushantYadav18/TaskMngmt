@@ -2,6 +2,7 @@ import Team from "../models/team.js";
 import User from "../models/user.js";
 import Project from "../models/project.js";
 import { ROLES, ROLE_VALUES, normalizeRole } from "../utils/roles.js";
+import { validateName } from "../utils/validation.js";
 
 const getTeamUsers = (memberIds = []) =>
   User.find({ _id: { $in: memberIds }, status: "approved" });
@@ -50,12 +51,19 @@ export const getTeams = async (req, res) => {
 export const createTeam = async (req, res) => {
   try {
     const { name, leaderId } = req.body;
-    const leader = await User.findById(leaderId);
-
-    if (!name || !leader) {
+    const nameResult = validateName(name, { maxLength: 80 });
+    if (!nameResult.valid) {
       return res
         .status(400)
-        .json({ status: false, message: "Team name and leader are required." });
+        .json({ status: false, message: nameResult.message });
+    }
+
+    const leader = await User.findById(leaderId);
+
+    if (!leader) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Team leader is required." });
     }
 
     if (
@@ -77,7 +85,7 @@ export const createTeam = async (req, res) => {
     }
 
     const team = await Team.create({
-      name,
+      name: nameResult.value,
       leader: leader._id,
       members: [leader._id],
     });

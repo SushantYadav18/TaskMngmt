@@ -4,18 +4,43 @@ import Team from "../models/team.js";
 import { createJWT } from "../utils/index.js";
 import Notice from "../models/notification.js";
 import { ROLE_VALUES, ROLES, normalizeRole } from "../utils/roles.js";
+import {
+  TECHNICAL_ROLE_VALUES,
+  normalizeTechnicalRole,
+} from "../utils/taskAccess.js";
+import { validateEmail, validateName } from "../utils/validation.js";
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, title } = req.body;
+    const { name, email, password, role, title, technicalRoles } = req.body;
     const normalizedRole = normalizeRole(role);
     const isAdminCreated = req.user?.isAdmin === true;
 
-    if (!name || !email || !password || !normalizedRole || !title) {
+    const nameResult = validateName(name);
+    if (!nameResult.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: nameResult.message });
+    }
+
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: emailResult.message });
+    }
+
+    if (!password || String(password).trim().length < 6) {
       return res.status(400).json({
         status: false,
-        message: "Name, email, password, role and title are required.",
+        message: "Password must be at least 6 characters.",
       });
+    }
+
+    if (!title || !String(title).trim()) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Title is required." });
     }
 
     if (
@@ -25,7 +50,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ status: false, message: "Invalid role." });
     }
 
-    const userExist = await User.findOne({ email: email.toLowerCase() });
+    const userExist = await User.findOne({ email: emailResult.value });
 
     if (userExist) {
       return res.status(400).json({
@@ -34,12 +59,24 @@ export const registerUser = async (req, res) => {
       });
     }
 
+    const normalizedTechnicalRoles =
+      isAdminCreated && Array.isArray(technicalRoles)
+        ? [
+            ...new Set(
+              technicalRoles
+                .map((role) => normalizeTechnicalRole(role))
+                .filter((role) => TECHNICAL_ROLE_VALUES.includes(role)),
+            ),
+          ]
+        : [];
+
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
+      name: nameResult.value,
+      email: emailResult.value,
       password,
       role: normalizedRole,
-      title,
+      title: String(title).trim(),
+      technicalRoles: normalizedTechnicalRoles,
       status: isAdminCreated ? "approved" : "pending",
       isActive: isAdminCreated,
     });
@@ -144,7 +181,7 @@ export const getTeamList = async (req, res) => {
     const requester = await User.findById(req.user.userId).select(
       "isAdmin role team",
     );
-    let query = { status: "approved" };
+    let query = { status: "approved", isAdmin: false, role: { $ne: "ADMIN" } };
 
     if (!requester?.isAdmin) {
       if (!requester?.team) {
@@ -165,7 +202,9 @@ export const getTeamList = async (req, res) => {
     }
 
     const users = await User.find(query)
-      .select("name title role email team isActive status isAdmin createdAt")
+      .select(
+        "name title role email team isActive status isAdmin technicalRoles createdAt",
+      )
       .sort({ createdAt: -1 });
 
     res.status(200).json(users);
@@ -226,6 +265,22 @@ export const updateUserProfile = async (req, res) => {
             .json({ status: false, message: "Invalid role." });
         }
         user.role = normalizedRole;
+      }
+
+      if (
+        isAdmin &&
+        Object.prototype.hasOwnProperty.call(req.body, "technicalRoles")
+      ) {
+        const nextRoles = Array.isArray(req.body.technicalRoles)
+          ? [
+              ...new Set(
+                req.body.technicalRoles
+                  .map((role) => normalizeTechnicalRole(role))
+                  .filter((role) => TECHNICAL_ROLE_VALUES.includes(role)),
+              ),
+            ]
+          : [];
+        user.technicalRoles = nextRoles;
       }
 
       const updatedUser = await user.save();

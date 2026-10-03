@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canAdminAssignProjectTask,
   canManageProject,
   canDelegateProjectTask,
   canViewProject,
@@ -91,6 +92,22 @@ test("project task work is limited to explicit project members", () => {
   assert.equal(canWorkOnProjectTask(project, { _id: "assignee" }), false);
   assert.equal(canWorkOnProjectTask(project, { _id: "outsider" }), false);
   assert.equal(canWorkOnProjectTask(null, { _id: "assignee" }), false);
+});
+
+test("administrators can assign project tasks to any project member", () => {
+  const admin = { _id: "admin", isAdmin: true };
+  assert.equal(
+    canAdminAssignProjectTask(admin, { _id: "member" }, project),
+    true,
+  );
+  assert.equal(
+    canAdminAssignProjectTask(admin, { _id: "outsider" }, project),
+    false,
+  );
+  assert.equal(
+    canAdminAssignProjectTask({ _id: "leader" }, { _id: "member" }, project),
+    false,
+  );
 });
 
 test("project delegation uses project membership, not team membership", () => {

@@ -7,18 +7,21 @@ import { useSelector } from "react-redux";
 import { useGetTeamListQuery } from "../../redux/slices/api/userApiSlice";
 import { getInitials } from "../../utils";
 
-const UserList = ({ setAssignee, assignee, project }) => {
+const UserList = ({ setAssignee, assignee, project, eligibleUsers = [] }) => {
   const { user: currentUser } = useSelector((state) => state.auth);
   const { data: teamUsers = [] } = useGetTeamListQuery();
   const [selectedUser, setSelectedUser] = useState(null);
-  const data = project?.members || teamUsers;
+  const data = project ? eligibleUsers : teamUsers;
 
   const sourceRole = currentUser?.role?.toUpperCase();
   const validUsers = data.filter((user) => {
     const targetRole = user.role?.toUpperCase();
+    if (user?.isAdmin || targetRole === "ADMIN") {
+      return false;
+    }
     if (project) {
       if (currentUser?.isAdmin) {
-        return user._id === project.projectLeader?._id;
+        return true;
       }
       if (currentUser?._id === project.projectLeader?._id) {
         return targetRole !== "ADMIN";
@@ -58,9 +61,20 @@ const UserList = ({ setAssignee, assignee, project }) => {
     setSelectedUser(data.find((user) => user._id === assignee) || null);
   }, [data, assignee, setAssignee, validUsers]);
 
+  if (project && validUsers.length === 0) {
+    return (
+      <div>
+        <p className="text-gray-700">Assign To</p>
+        <div className="mt-2 rounded border border-dashed border-gray-300 bg-gray-50 p-3 text-sm text-gray-600">
+          No eligible project member found for the selected keyword and level.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <p className="text-gray-700">Assign Task To: </p>
+      <p className="text-gray-700">Assign To</p>
       <Listbox value={selectedUser} onChange={(el) => handleChange(el)}>
         <div className="relative mt-1">
           <Listbox.Button className="relative w-full cursor-default rounded bg-white pl-3 pr-10 text-left px-3 py-2.5 2xl:py-3 border border-gray-300 sm:text-sm">

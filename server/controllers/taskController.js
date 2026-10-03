@@ -5,6 +5,7 @@ import User from "../models/user.js";
 import Project from "../models/project.js";
 import { canDelegateTo } from "../utils/roles.js";
 import {
+  canAdminAssignProjectTask,
   canDelegateProjectTask,
   canWorkOnProjectTask,
 } from "../utils/projectAccess.js";
@@ -22,6 +23,18 @@ import {
   DEFAULT_WORKLOAD_CONFIG,
   validateProjectTaskAssignment,
 } from "../utils/workload.js";
+import {
+  getTaskRequiredTechnicalRoles,
+  normalizeRoleMatchMode,
+  normalizeTaskKeywords,
+  normalizeTaskLevel,
+  validateTaskAssignment,
+} from "../utils/taskAccess.js";
+import {
+  validateAssignmentTarget,
+  validateRequiredText,
+  validateTaskKeywordList,
+} from "../utils/validation.js";
 
 export const createTask = async (req, res) => {
   try {
@@ -29,6 +42,7 @@ export const createTask = async (req, res) => {
 
     const {
       title,
+      description,
       assignee,
       project: projectId,
       stage,
@@ -36,10 +50,67 @@ export const createTask = async (req, res) => {
       plannedStartDate,
       dueDate,
       estimatedDuration,
+      keywords,
+      requiredLevel,
+      exactLevelOnly,
+      roleMatchMode,
     } = req.body;
+    const titleCheck = validateRequiredText(title, {
+      fieldName: "Task title",
+      minLength: 3,
+      maxLength: 120,
+    });
+    if (!titleCheck.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: titleCheck.message });
+    }
+
+    const keywordCheck = validateTaskKeywordList(keywords);
+    if (!keywordCheck.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: keywordCheck.message });
+    }
+
     const date = getTaskAssignmentDate();
     const creator = await User.findById(userId);
     const target = await User.findById(assignee);
+    const normalizedKeywords = normalizeTaskKeywords(keywords);
+    const normalizedRequiredLevel =
+      normalizeTaskLevel(requiredLevel) || "JUNIOR";
+    const normalizedRoleMatchMode = normalizeRoleMatchMode(roleMatchMode);
+    const requiredTechnicalRoles = getTaskRequiredTechnicalRoles(
+      normalizedKeywords,
+      {
+        requiredTechnicalRoles: req.body.requiredTechnicalRoles,
+        roleMatchMode: normalizedRoleMatchMode,
+      },
+    );
+    const taskRequirement = {
+      keywords: normalizedKeywords,
+      requiredLevel: normalizedRequiredLevel,
+      exactLevelOnly: Boolean(exactLevelOnly),
+      roleMatchMode: normalizedRoleMatchMode,
+      requiredTechnicalRoles,
+    };
+    const normalizedStage = String(stage || "todo").toLowerCase();
+    const normalizedPriority = String(priority || "normal").toLowerCase();
+
+    if (!["todo", "in progress", "completed"].includes(normalizedStage)) {
+      return res.status(400).json({
+        status: false,
+        message: "Task stage is invalid.",
+      });
+    }
+
+    if (!["high", "medium", "normal", "low"].includes(normalizedPriority)) {
+      return res.status(400).json({
+        status: false,
+        message: "Task priority is invalid.",
+      });
+    }
+
     const scheduleError = validateTaskSchedule({
       plannedStartDate,
       dueDate,
@@ -56,6 +127,26 @@ export const createTask = async (req, res) => {
       });
     }
 
+    const assignmentTargetCheck = validateAssignmentTarget({
+      role: target.role,
+      isActive: target.isActive,
+      status: target.status,
+    });
+
+    if (!assignmentTargetCheck.allowed) {
+      return res.status(400).json({
+        status: false,
+        message: assignmentTargetCheck.message,
+      });
+    }
+
+    if (!normalizedKeywords.length) {
+      return res.status(400).json({
+        status: false,
+        message: "At least one task keyword is required.",
+      });
+    }
+
     let project = null;
     if (projectId) {
       project = await Project.findById(projectId)
@@ -69,7 +160,7 @@ export const createTask = async (req, res) => {
       const isProjectLeader =
         String(project.projectLeader?._id) === String(creator._id);
       const isAllowedProjectAssignment = creator.isAdmin
-        ? String(project.projectLeader?._id) === String(target._id)
+        ? canAdminAssignProjectTask(creator, target, project)
         : isProjectLeader && canDelegateProjectTask(creator, target, project);
 
       if (
@@ -86,19 +177,23 @@ export const createTask = async (req, res) => {
         project: project._id,
         isTrashed: false,
       });
-      const workloadCheck = validateProjectTaskAssignment({
-        projectId: project._id,
-        memberId: target._id,
-        tasks: projectTasks,
-        newPriority: priority,
+      const assignmentCheck = validateTaskAssignment({
+        project,
+        task: {
+          ...taskRequirement,
+          priority,
+        },
+        targetUser: target,
+        creatorUser: creator,
+        projectTasks,
         now: new Date(),
         config: DEFAULT_WORKLOAD_CONFIG,
       });
 
-      if (!workloadCheck.allowed) {
+      if (!assignmentCheck.allowed) {
         return res.status(400).json({
           status: false,
-          message: workloadCheck.message,
+          message: assignmentCheck.message,
         });
       }
     } else if (!creator.isAdmin || !canDelegateTo(creator, target)) {
@@ -123,6 +218,12 @@ export const createTask = async (req, res) => {
 
     const task = await Task.create({
       title,
+      description: description || "",
+      keywords: normalizedKeywords,
+      requiredTechnicalRoles: requiredTechnicalRoles,
+      requiredLevel: normalizedRequiredLevel,
+      exactLevelOnly: Boolean(exactLevelOnly),
+      roleMatchMode: normalizedRoleMatchMode,
       createdBy: userId,
       assignee,
       project: project?._id || null,
@@ -158,6 +259,12 @@ export const duplicateTask = async (req, res) => {
 
     const newTask = await Task.create({
       title: task.title + " - Duplicate",
+      description: task.description || "",
+      keywords: task.keywords || [],
+      requiredTechnicalRoles: task.requiredTechnicalRoles || [],
+      requiredLevel: task.requiredLevel || "JUNIOR",
+      exactLevelOnly: Boolean(task.exactLevelOnly),
+      roleMatchMode: task.roleMatchMode || "ANY",
       createdBy: req.user.userId,
       assignee: task.assignee,
       project: task.project || null,
@@ -777,6 +884,7 @@ export const updateTask = async (req, res) => {
     const { id } = req.params;
     const {
       title,
+      description,
       stage,
       priority,
       plannedStartDate,
@@ -784,6 +892,10 @@ export const updateTask = async (req, res) => {
       estimatedDuration,
       actualStartDate,
       actualCompletionDate,
+      keywords,
+      requiredLevel,
+      exactLevelOnly,
+      roleMatchMode,
     } = req.body;
 
     const scheduleError = validateTaskSchedule({
@@ -793,6 +905,17 @@ export const updateTask = async (req, res) => {
     });
     if (scheduleError) {
       return res.status(400).json({ status: false, message: scheduleError });
+    }
+
+    const titleCheck = validateRequiredText(title, {
+      fieldName: "Task title",
+      minLength: 3,
+      maxLength: 120,
+    });
+    if (title && !titleCheck.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: titleCheck.message });
     }
 
     const task = await Task.findById(id);
@@ -805,6 +928,23 @@ export const updateTask = async (req, res) => {
 
     const currentStage = task.stage;
     const nextStage = stage ? String(stage).toLowerCase() : currentStage;
+
+    if (stage && !["todo", "in progress", "completed"].includes(nextStage)) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Task stage is invalid." });
+    }
+
+    if (
+      priority &&
+      !["high", "medium", "normal", "low"].includes(
+        String(priority).toLowerCase(),
+      )
+    ) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Task priority is invalid." });
+    }
 
     if (nextStage !== currentStage) {
       const predecessorTasks = await getTaskPredecessors(task._id);
@@ -838,8 +978,46 @@ export const updateTask = async (req, res) => {
       });
     }
 
-    task.title = title;
-    task.priority = priority.toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(req.body, "keywords")) {
+      const keywordCheck = validateTaskKeywordList(keywords);
+      if (!keywordCheck.valid) {
+        return res.status(400).json({
+          status: false,
+          message: keywordCheck.message,
+        });
+      }
+      const normalizedKeywords = normalizeTaskKeywords(keywordCheck.value);
+      task.keywords = normalizedKeywords;
+      task.requiredTechnicalRoles = getTaskRequiredTechnicalRoles(
+        normalizedKeywords,
+        {
+          requiredTechnicalRoles: req.body.requiredTechnicalRoles,
+          roleMatchMode: normalizeRoleMatchMode(roleMatchMode),
+        },
+      );
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "requiredLevel")) {
+      task.requiredLevel =
+        normalizeTaskLevel(requiredLevel) || task.requiredLevel || "JUNIOR";
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, "exactLevelOnly")) {
+      task.exactLevelOnly = Boolean(exactLevelOnly);
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, "roleMatchMode")) {
+      task.roleMatchMode = normalizeRoleMatchMode(roleMatchMode);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "description")) {
+      task.description = description || "";
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "title")) {
+      task.title = titleCheck.value;
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body, "priority")) {
+      task.priority = String(priority).toLowerCase();
+    }
     task.plannedStartDate = plannedStartDate || null;
     task.dueDate = dueDate || null;
     task.estimatedDuration = estimatedDuration || null;
@@ -863,15 +1041,30 @@ export const delegateTask = async (req, res) => {
     const target = await User.findById(req.body.assignee);
     const source = await User.findById(req.user.userId);
 
+    const targetAssignmentCheck = validateAssignmentTarget({
+      role: target?.role,
+      isActive: target?.isActive,
+      status: target?.status,
+    });
+
+    if (!target || !source || !targetAssignmentCheck.allowed) {
+      return res.status(403).json({
+        status: false,
+        message: targetAssignmentCheck.allowed
+          ? "You cannot delegate this task to that user."
+          : targetAssignmentCheck.message,
+      });
+    }
+
     let allowed = false;
     let project = null;
     if (req.task.project) {
       project = await Project.findById(req.task.project)
         .populate("projectLeader", "role team isAdmin")
-        .populate("members", "role team isAdmin");
+        .populate("members", "role team isAdmin technicalRoles isActive");
       if (project) {
         allowed = source.isAdmin
-          ? String(project.projectLeader?._id) === String(target._id)
+          ? canAdminAssignProjectTask(source, target, project)
           : canDelegateProjectTask(source, target, project);
       }
     } else {
@@ -890,19 +1083,27 @@ export const delegateTask = async (req, res) => {
         project: project._id,
         isTrashed: false,
       });
-      const workloadCheck = validateProjectTaskAssignment({
-        projectId: project._id,
-        memberId: target._id,
-        tasks: projectTasks,
-        newPriority: req.task.priority,
+      const assignmentCheck = validateTaskAssignment({
+        project,
+        task: {
+          keywords: req.task.keywords || [],
+          requiredTechnicalRoles: req.task.requiredTechnicalRoles || [],
+          requiredLevel: req.task.requiredLevel,
+          exactLevelOnly: req.task.exactLevelOnly,
+          roleMatchMode: req.task.roleMatchMode,
+          priority: req.task.priority,
+        },
+        targetUser: target,
+        creatorUser: source,
+        projectTasks,
         now: new Date(),
         config: DEFAULT_WORKLOAD_CONFIG,
       });
 
-      if (!workloadCheck.allowed) {
+      if (!assignmentCheck.allowed) {
         return res.status(400).json({
           status: false,
-          message: workloadCheck.message,
+          message: assignmentCheck.message,
         });
       }
     }

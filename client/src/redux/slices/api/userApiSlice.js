@@ -11,6 +11,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
         body: data,
         credentials: "include",
       }),
+      invalidatesTags: ["Team", "User"],
     }),
 
     updateUser: builder.mutation({
@@ -20,6 +21,7 @@ export const userApiSlice = apiSlice.injectEndpoints({
         body: data,
         credentials: "include",
       }),
+      invalidatesTags: ["Project", "Team", "User"],
     }),
 
     getTeamList: builder.query({

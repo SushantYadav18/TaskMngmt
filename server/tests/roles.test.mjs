@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canDelegateTo, ROLES } from "../utils/roles.js";
+import {
+  canDelegateTo,
+  ROLES,
+  validateAssignmentTarget,
+} from "../utils/roles.js";
+import { validateEmail, validateName } from "../utils/validation.js";
 
 const user = (role, team = null, isAdmin = false) => ({ role, team, isAdmin });
 
@@ -62,3 +67,28 @@ for (const [
     );
   });
 }
+
+test("admin users cannot be assigned tasks", () => {
+  const result = validateAssignmentTarget({
+    role: ROLES.ADMIN,
+    isActive: true,
+    status: "approved",
+  });
+
+  assert.equal(result.allowed, false);
+  assert.match(result.message, /ADMIN/i);
+});
+
+test("human names reject obvious invalid values", () => {
+  assert.equal(validateName("1234").valid, false);
+  assert.equal(validateName("!!!").valid, false);
+  assert.equal(validateName("John Smith").valid, true);
+  assert.equal(validateName("Mary-Jane O'Neil").valid, true);
+});
+
+test("emails must include a valid domain and local part", () => {
+  assert.equal(validateEmail("abc").valid, false);
+  assert.equal(validateEmail("abcgmail.com").valid, false);
+  assert.equal(validateEmail("abc@").valid, false);
+  assert.equal(validateEmail("test@gmail.com").valid, true);
+});

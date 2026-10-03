@@ -13,6 +13,14 @@ import {
   useUpdateTaskMutation,
 } from "../../redux/slices/api/taskApiSlice";
 import { useGetProjectWorkloadQuery } from "../../redux/slices/api/projectApiSlice";
+import {
+  TASK_KEYWORD_DEFINITIONS,
+  TASK_LEVEL_OPTIONS,
+  TASK_ROLE_MATCH_OPTIONS,
+  getEligibleProjectMembers,
+  getTaskRequiredTechnicalRoles,
+} from "../../utils/taskAccessConfig";
+import { validateTaskTitle } from "../../utils/validation";
 
 const LISTS = ["TODO", "IN PROGRESS", "COMPLETED"];
 const PRIORIRY = ["HIGH", "MEDIUM", "NORMAL", "LOW"];
@@ -47,6 +55,17 @@ const AddTask = ({ open, setOpen, task, project }) => {
   const [assignee, setAssignee] = useState(
     task?.assignee?._id || task?.assignee || "",
   );
+  const [keywords, setKeywords] = useState(task?.keywords || []);
+  const [keywordError, setKeywordError] = useState("");
+  const [requiredLevel, setRequiredLevel] = useState(
+    task?.requiredLevel || "JUNIOR",
+  );
+  const [roleMatchMode, setRoleMatchMode] = useState(
+    task?.roleMatchMode || "ANY",
+  );
+  const [exactLevelOnly, setExactLevelOnly] = useState(
+    Boolean(task?.exactLevelOnly),
+  );
   const [stage, setStage] = useState(task?.stage?.toUpperCase() || LISTS[0]);
   const [priority, setPriority] = useState(
     task?.priority?.toUpperCase() || PRIORIRY[2],
@@ -54,6 +73,20 @@ const AddTask = ({ open, setOpen, task, project }) => {
   const [createTask, { isLoading: isCreating }] = useCreateTaskMutation();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
   const [delegateTask, { isLoading: isDelegating }] = useDelegateTaskMutation();
+  const requiredTechnicalRoles = getTaskRequiredTechnicalRoles(keywords, {
+    roleMatchMode,
+  });
+  const eligibleProjectMembers = project
+    ? getEligibleProjectMembers({
+        project,
+        task: {
+          keywords,
+          requiredLevel,
+          exactLevelOnly,
+          roleMatchMode,
+        },
+      })
+    : [];
   const { data: workloadData } = useGetProjectWorkloadQuery(
     project
       ? {
@@ -69,6 +102,7 @@ const AddTask = ({ open, setOpen, task, project }) => {
     if (task) {
       reset({
         title: task.title || "",
+        description: task.description || "",
         date: assignmentDate,
         plannedStartDate: task.plannedStartDate
           ? new Date(task.plannedStartDate).toISOString().slice(0, 10)
@@ -79,17 +113,28 @@ const AddTask = ({ open, setOpen, task, project }) => {
         estimatedDuration: task.estimatedDuration || "",
       });
       setAssignee(task.assignee?._id || task.assignee || "");
+      setKeywords(task.keywords || []);
+      setKeywordError("");
+      setRequiredLevel(task.requiredLevel || "JUNIOR");
+      setRoleMatchMode(task.roleMatchMode || "ANY");
+      setExactLevelOnly(Boolean(task.exactLevelOnly));
       setStage(task.stage?.toUpperCase() || LISTS[0]);
       setPriority(task.priority?.toUpperCase() || PRIORIRY[2]);
     } else {
       reset({
         title: "",
+        description: "",
         date: minDate,
         plannedStartDate: "",
         dueDate: "",
         estimatedDuration: "",
       });
       setAssignee("");
+      setKeywords([]);
+      setKeywordError("");
+      setRequiredLevel("JUNIOR");
+      setRoleMatchMode("ANY");
+      setExactLevelOnly(false);
       setStage(LISTS[0]);
       setPriority(PRIORIRY[2]);
     }
@@ -97,13 +142,30 @@ const AddTask = ({ open, setOpen, task, project }) => {
 
   const submitHandler = async (data) => {
     try {
+      if (!keywords.length) {
+        setKeywordError("Select at least one keyword.");
+        return;
+      }
+
+      const titleValidation = validateTaskTitle(data.title);
+      if (!titleValidation.valid) {
+        toast.error(titleValidation.message);
+        return;
+      }
+
       if (!assignee) {
-        toast.error("Please select an assignee.");
+        toast.error("Please select an eligible assignee.");
         return;
       }
 
       const payload = {
-        title: data.title,
+        title: data.title.trim(),
+        description: data.description || "",
+        keywords,
+        requiredTechnicalRoles: requiredTechnicalRoles,
+        requiredLevel,
+        exactLevelOnly,
+        roleMatchMode,
         assignee,
         ...(project ? { project: project._id || project } : {}),
         stage: stage.toLowerCase(),
@@ -149,20 +211,96 @@ const AddTask = ({ open, setOpen, task, project }) => {
           </Dialog.Title>
 
           <div className="mt-2 flex flex-col gap-6">
+            <fieldset
+              aria-describedby={keywordError ? "task-keyword-error" : undefined}
+              className="sticky top-0 z-10 -mx-5 space-y-3 border-b border-gray-200 bg-white px-5 pb-3 pt-2 sm:-mx-8 sm:px-8"
+            >
+              <legend className="text-sm font-semibold text-slate-800">
+                Keywords <span className="text-red-600">*</span>
+              </legend>
+              <p className="text-xs text-gray-500">
+                Select one or more keywords for this task.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(TASK_KEYWORD_DEFINITIONS).map(
+                  ([keyword, config]) => {
+                    const enabled = keywords.includes(keyword);
+                    return (
+                      <button
+                        key={keyword}
+                        type="button"
+                        title={config.description}
+                        aria-pressed={enabled}
+                        onClick={() => {
+                          setKeywordError("");
+                          setKeywords((current) =>
+                            current.includes(keyword)
+                              ? current.filter((item) => item !== keyword)
+                              : [...current, keyword],
+                          );
+                        }}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                          enabled
+                            ? "border-indigo-600 bg-indigo-600 text-white"
+                            : "border-gray-300 bg-white text-gray-700 hover:border-indigo-300"
+                        }`}
+                      >
+                        {config.label}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+              {requiredTechnicalRoles.length > 0 && (
+                <p className="text-sm text-indigo-700">
+                  Required Role: {requiredTechnicalRoles.join(" / ")}
+                </p>
+              )}
+              {keywordError && (
+                <p
+                  id="task-keyword-error"
+                  role="alert"
+                  className="text-sm text-red-600"
+                >
+                  {keywordError}
+                </p>
+              )}
+            </fieldset>
+
             <Textbox
               placeholder="Task Title"
               type="text"
               name="title"
               label="Task Title"
               className="w-full rounded"
-              register={register("title", { required: "Title is required" })}
+              register={register("title", {
+                required: "Title is required",
+                validate: (value) => {
+                  const result = validateTaskTitle(value);
+                  return result.valid || result.message;
+                },
+              })}
               error={errors.title ? errors.title.message : ""}
             />
+
+            <div>
+              <label className="text-sm font-semibold text-slate-800">
+                Description
+              </label>
+              <textarea
+                name="description"
+                placeholder="Describe the task..."
+                rows={4}
+                {...register("description")}
+                className="mt-2 w-full rounded-2xl border border-gray-300 bg-transparent px-4 py-3.5 text-base text-gray-900 placeholder-gray-400 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+              />
+            </div>
 
             <UserList
               setAssignee={setAssignee}
               assignee={assignee}
               project={project}
+              eligibleUsers={eligibleProjectMembers}
             />
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -220,13 +358,37 @@ const AddTask = ({ open, setOpen, task, project }) => {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <SelectList
                 label="Priority Level"
                 lists={PRIORIRY}
                 selected={priority}
                 setSelected={setPriority}
               />
+              <SelectList
+                label="Task Level"
+                lists={TASK_LEVEL_OPTIONS}
+                selected={requiredLevel}
+                setSelected={setRequiredLevel}
+              />
+            </div>
+
+            <SelectList
+              label="Role Match"
+              lists={TASK_ROLE_MATCH_OPTIONS}
+              selected={roleMatchMode}
+              setSelected={setRoleMatchMode}
+            />
+
+            <div className="flex items-center rounded border border-gray-300 bg-white p-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={exactLevelOnly}
+                  onChange={(event) => setExactLevelOnly(event.target.checked)}
+                />
+                Exact level only
+              </label>
             </div>
 
             {project && assignee && workloadData?.preview && (

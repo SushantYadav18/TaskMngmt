@@ -11,6 +11,7 @@ import {
 } from "../utils/projectAccess.js";
 import { ROLES, normalizeRole } from "../utils/roles.js";
 import { calculateProjectProgress } from "../utils/scheduling.js";
+import { validateName } from "../utils/validation.js";
 import { topologicalSortTasks } from "../utils/taskDependencies.js";
 import { calculateCriticalPath } from "../utils/cpm.js";
 import {
@@ -20,7 +21,8 @@ import {
   validateProjectTaskAssignment,
 } from "../utils/workload.js";
 
-const participantFields = "name title role email team isActive status";
+const participantFields =
+  "name title role email team isActive status technicalRoles";
 
 const populateProject = (query) =>
   query
@@ -104,10 +106,11 @@ export const createProject = async (req, res) => {
     }
 
     const { name, projectLeader, teams = [], members = [] } = req.body;
-    if (!name?.trim()) {
+    const nameResult = validateName(name, { maxLength: 120 });
+    if (!nameResult.valid) {
       return res
         .status(400)
-        .json({ status: false, message: "Project name is required." });
+        .json({ status: false, message: nameResult.message });
     }
 
     const participantResult = await validateProjectParticipants({
@@ -122,9 +125,10 @@ export const createProject = async (req, res) => {
         .json({ status: false, message: participantResult.error });
     }
 
-    const project = await Project.create(
-      projectPayload(req.body, req.user.userId),
-    );
+    const project = await Project.create({
+      ...projectPayload(req.body, req.user.userId),
+      name: nameResult.value,
+    });
     const populatedProject = await populateProject(
       Project.findById(project._id),
     );

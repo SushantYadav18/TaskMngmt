@@ -34,17 +34,29 @@ router.post("/google", async (req, res) => {
     } = req.body;
     const normalizedRole = normalizeRole(role);
 
-    if (!email || !name) {
+    const nameResult = await import("../utils/validation.js").then((m) =>
+      m.validateName(name),
+    );
+    if (!nameResult.valid) {
       return res
         .status(400)
-        .json({ status: false, message: "Email and name are required." });
+        .json({ status: false, message: nameResult.message });
+    }
+
+    const emailResult = await import("../utils/validation.js").then((m) =>
+      m.validateEmail(email),
+    );
+    if (!emailResult.valid) {
+      return res
+        .status(400)
+        .json({ status: false, message: emailResult.message });
     }
 
     if (!ROLE_VALUES.includes(normalizedRole)) {
       return res.status(400).json({ status: false, message: "Invalid role." });
     }
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = emailResult.value;
     let user = await import("../models/user.js").then((m) =>
       m.default.findOne({ email: normalizedEmail }),
     );

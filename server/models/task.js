@@ -1,8 +1,43 @@
 import mongoose, { Schema } from "mongoose";
+import { TECHNICAL_ROLE_VALUES } from "../utils/taskAccess.js";
 
 const taskSchema = new Schema(
   {
-    title: { type: String, required: true },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 120,
+    },
+    description: { type: String, default: "", trim: true, maxlength: 2000 },
+    keywords: {
+      type: [{ type: String, trim: true, lowercase: true }],
+      validate: {
+        validator(value) {
+          return Array.isArray(value) && value.length > 0;
+        },
+        message: "At least one task keyword is required.",
+      },
+    },
+    requiredTechnicalRoles: [
+      {
+        type: String,
+        enum: TECHNICAL_ROLE_VALUES,
+        default: [],
+      },
+    ],
+    requiredLevel: {
+      type: String,
+      enum: ["INTERN", "JUNIOR", "ASSOCIATE"],
+      default: "JUNIOR",
+    },
+    exactLevelOnly: { type: Boolean, default: false },
+    roleMatchMode: {
+      type: String,
+      enum: ["ANY", "ALL"],
+      default: "ANY",
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     assignee: { type: Schema.Types.ObjectId, ref: "User", required: true },
     project: {
